@@ -1,1 +1,1 @@
-__all__ = ["testmod"]
+__all__ = ["testmod", "database"]

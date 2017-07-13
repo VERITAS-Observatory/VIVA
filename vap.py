@@ -16,3 +16,29 @@ else:
 print(inst_filename)
 
 testmod.testmod()
+
+#Test the database functionality
+print('-'*25)
+print('Testing DB functionality')
+tmpCD={'GLOBALCONFIG' : {'DBHOSTNAME' : 'romulus.ucsc.edu', 'DBNAME' : 'VERITAS', 'DBUSERNAME' : 'readonly'}}
+dbcnx=database.DBConnection(configdict=tmpCD)
+
+host=dbcnx.host
+db=dbcnx.db
+user=dbcnx.user
+
+print('host = ', host)
+print('db = ', db)
+print('user = ', user)
+
+tmp_runnum='79227'
+print('Info for run ', tmp_runnum, ':')
+
+flasher=dbcnx.get_calib_run(tmp_runnum)
+ddate=dbcnx.get_ddate(tmp_runnum)
+src_id=dbcnx.get_source_id(tmp_runnum)
+
+print('    flasher run = ', flasher)
+print('    ddate = ', ddate)
+print('    src_id = ', src_id)
+
