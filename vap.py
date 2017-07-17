@@ -42,3 +42,5 @@ print('    flasher run = ', flasher)
 print('    ddate = ', ddate)
 print('    src_id = ', src_id)
 
+read_inst = reader(inst_filename)
+config_dict = read_inst.dict
