@@ -6,6 +6,7 @@ Created on Thu Jul 13 11:28:47 2017
 """
 
 class reader:
+    
     def __init__(self,input_file):
         with open(input_file, 'r') as i:
             self.lines = str(i.read())
@@ -21,8 +22,7 @@ class reader:
             if end_sep in par:
                 results.append(par.split(end_sep)[0])
         return results  
-    
-
+   
     def write_dict(keys,values):
         dictionary = {}
         for i in range(len(keys)):
