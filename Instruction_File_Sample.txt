@@ -1,9 +1,12 @@
-GlobalConfig{
+GLOBALCONFIG{
 VEGASDir=
 WorkingDir=
 RawDataDir=
 Runlist=
-Database
+Database=
+DBHOSTNAME=
+DBNAME=
+DBUSERNAME=
 }
 
 
