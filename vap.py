@@ -2,6 +2,7 @@
 
 import sys
 from plutils import *
+from plutils import reader
 
 inst_filename = sys.argv[1]
 
@@ -42,5 +43,6 @@ print('    flasher run = ', flasher)
 print('    ddate = ', ddate)
 print('    src_id = ', src_id)
 
-read_inst = reader(inst_filename)
-config_dict = read_inst.dict
+read_inst = reader.reader(inst_filename)
+configdict = read_inst.dict
+print ('configdict: ', configdict)
