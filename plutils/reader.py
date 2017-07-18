@@ -18,6 +18,7 @@ class reader:
         results = []
         resource = str(resource)
         tmp = resource.split(start_sep)
+        del tmp[0]
         for par in tmp:
             if end_sep in par:
                 results.append(par.split(end_sep)[0])
