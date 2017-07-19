@@ -46,3 +46,7 @@ print('    src_id = ', src_id)
 read_inst = reader.reader(inst_filename)
 configdict = read_inst.dict
 print ('configdict: ', configdict)
+
+#RunGroupmanager
+readrl = RunGroupManager(**configdict)
+rldict = readrl.rldict
