@@ -48,5 +48,10 @@ configdict = read_inst.dict
 print ('configdict: ', configdict)
 
 #RunGroupmanager
-readrl = RunGroupManager(**configdict)
-rldict = readrl.rldict
+#return whole groupdict from configdict
+rgm = RunGroupManager(configdict)
+groupdict = rgm.groupdict
+#return part of group dict based on groupstring(type = str, seperated by : )
+rgm = RunGroupManager(configdict,**groupstring)
+groupdict = rgm.partdict
+
