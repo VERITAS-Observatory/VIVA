@@ -24,8 +24,17 @@ class RunGroup:
                 with open(runlistfile) as rl:
                     content = rl.readlines()
                     for s in content:
-                        runnum = s.split(' ',1)[0]
-                        timecut = s.split(' ',1)[1].strip('\n')
+                        sl = s.split(maxsplit=1)
+                        len_sl = len(sl) 
+                        if len_sl >= 2:
+                            runnum = sl[0]
+                            timecuts = sl[1]
+                        elif len_sl == 1:
+                            runnum = sl[0]
+                            timecuts = ""
+                        elif len_sl == 0:
+                            continue
+                        #calib and date
                         rundict[key][runnum] = {}
                         rundict[key][runnum]['timecut'] = timecut
             del rundict[key]['runnum']
