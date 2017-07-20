@@ -7,6 +7,7 @@ import time
 #from . import config_writer
 from . import condor
 
+#Base class consisting of the shared methods of the VEGAS analysis stages.
 class VAStage:
 			
 	def is_condor_enabled(self):
@@ -141,8 +142,8 @@ class VAStage:
 			files = os.listdir(dir)
 			for file in files:
 				m = file_pat.match(file)
-				if(m != None)
-					filename= dir + '/' + m.group()
+				if m != None:
+					filename = dir + '/' + file
 		return filename
 				
 		
@@ -177,16 +178,52 @@ class VAStage:
 	def anl_existing_output(self):
 		has_existing = {}
 		for run in self.runlist.keys():
-			file = self.get_file(run,filetype,self.outputdir)
+			file = self.get_file(run,filetype,[self.outputdir])
 			if file != None:
 				has_existing.update({run, True})
 			else:
 				has_existing.update({run, False})
 		return has_existing
-								
 		
-
-			 
+	#Cleans up files produced by this stage based on the contents of the clean_opts list.						
+	def clean_up(self, clean_opts):
+		for co in clean_opts:
+			if co.lower() == 'all':
+				subprocess.run(['rm','-r', self.outputdir])
+                        else:
+				outfile_pat = re.compile('[0-9]+[.]*.*[.]root')
+				logfile_pat = re.compile('.*[.](log|err|out|sub)')                 
+                                if co.lower() == 'output':
+					for file in os.listdir(self.outputdir):
+						m = outfile_pat.match(file)
+						if m != None:
+							path_to_file = self.outputdir + '/' + file
+							subprocess.run(['rm', path_to_file])
+						
+                                elif co.lower() == 'output_bad':
+					for run in stg.runlist.keys()
+						if stg.jobs.get(run).exit_status != '0':
+							file = get_file(run,'root',[self.outputdir])
+							subprocess.run(['rm', file])
+                                                                
+                                if co.lower() == 'logs':
+					for file in os.listdir(self.outputdir)
+						m = logfile_pat.match(file)
+						if m != None
+							path_to_file = self.outputdir + '/' + self.outputdir
+							subprocess.run(['rm', path_to_file])
+					
+                                elif co.lower() == 'logs_bad':
+					for run in stg.runlist.key():
+						if stg.jobs(run).exit_status != '0':
+							run_logfile_pat = re.compile('.*' + run + '[.](log|err|out|sub)')
+							for file in os.listdir(self.outputdir):
+								m = run_logfile_pat.match(file)
+								if m != None:
+									path_to_file = self.outputdir + '/' + file
+									subprocess.run(['rm', path_to_file])
+						
+	
 #Standard stage 1 analysis 
 class VAStage1(VAStage):
 
