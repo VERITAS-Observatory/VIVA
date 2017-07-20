@@ -40,8 +40,14 @@ class VAStage:
 	
 	def execute(self):
 		if is_condor_enabled():
-			for j in self.jobs.keys()
-				self.jobs(j).execute()
+			for run, job in self.jobs.items()
+				if self.use_existing == True:
+					if self.existing_output.get(run) == True:
+						#A file for this run already exist in the output directory
+						job.status = 'succeeded'
+                                                job.exit_status = '0'						
+					else:
+						job.execute()
 		else:
 			raise JobExecError('I don\'t know how to exectute properly without using condor yet...')	
 	
@@ -99,15 +105,16 @@ class VAStage:
 	def copy_input_to_output(self):
 		copyprocs = []
 		file_pat = re.compile('([0-9]+)([.]*.*[.])root')
-		for file in os.listdir(self.inputdir):
-			m = file_pat.match(file)
-			if m != None :
-				#Only the copy the files if they appear in the runlist for this stage
-				if m.match(1) in self.runlist.keys():
-					oldfile = self.inputdir + '/' + m.group()
-					newfile = self.outputdir + '/' + m.group(1) + 'stg' + self.stage + '.root'
-					proc = subprocess.Popen(['cp', oldfile, newfile])
-					copyprocs.append(proc)
+		for dir in self.inputdirs:
+			for file in os.listdir(dir):
+				m = file_pat.match(file)
+					if m != None :
+					#Only the copy the files if they appear in the runlist for this stage
+					if m.match(1) in self.runlist.keys():
+						oldfile = dir + '/' + m.group()
+						newfile = self.outputdir + '/' + m.group(1) + 'stg' + self.stage + '.root'
+						proc = subprocess.Popen(['cp', oldfile, newfile])
+						copyprocs.append(proc)
 		#Ensure we wait for all the copying jobs to finish
 		is_copying=True
 		while(is_copying):
@@ -119,35 +126,65 @@ class VAStage:
 			else:
 				time.sleep(0.25)
 
-	#returns the path to the input file for a specific run
-	 def get_input_file(self, run, filetype, inputdir, ddate_dir=False):
+	#returns the path to the file for a specific run. Searchs directories in the list dirs.
+	#Setting the ddate_dir argument to True will a append a prefix directory of the form dyyyymmdd to the search path 
+	def get_file(self, run, filetype, dirs, ddate_dir=False):
 		
-		#append the ddata directory if necessary
-		if ddate_dir == True:
-			inputdir + '/' + self.runlist(run).ddate + '/'
+		filename=None
+		file_pat = re.compile(run + '([.]*.*[.])' + filetype
+		
+		for dir in dirs:
+			#append the ddata directory if necessary
+			if ddate_dir == True:
+				dir = dir + '/' + self.runlist(run).ddate
 
-		inputfiles = os.listdir(inputdir)
-		file_pat = re.compile(run + '([.]*.*[.])' + filetype)
-		inputfilename=None
-		for file in inputfiles:
-			m = file_pat.match(file)
-			if(m != None)
-				inputfilename= inputdir + '/' + m.group()
-		return inputfilename
+			files = os.listdir(dir)
+			for file in files:
+				m = file_pat.match(file)
+				if(m != None)
+					filename= dir + '/' + m.group()
+		return filename
 				
 		
 		
 
-	#Check the input directory for a file associated with a run
-	def check_for_input(self, filetype, inputdir, ddate_dir=False):
-		inputfiles = os.listdir(inputdir)
-		file_pat = re.compile('([0-9]+)([.]*.*[.])' + filetype)								
+	#Check the input directorys for a file associated with a run
+	def check_for_input(self, filetype, inputdirs, ddate_dir=False):
+										
 		for run in self.runlist.keys():
-			file = self.get_input_file(run,filetype,ddate_dir)
+			file = self.get_file(run,filetype,ddate_dir)
 			if file == None:
-				err_str = 'input ' + filetype + ' file could not be found in ' + inputdir + ' for run ' + run
+				err_str = 'input ' + filetype + ' file could not be found for run ' + run
 				raise InputFileError(err_str)
-		return True
+
+		return True #No errors raised
+
+	#check whether to us existing output root files. Overwrite old files by default.
+	def use_existing_output(self)
+
+		use_existing = False
+		
+		if 'USEEXISTINGOUTPUT' in self.gconfigdict.get(self.stgconfigkey).keys():
+			if self.gconfigdict.get(self.stgconfigkey).get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']
+				use_existing = True
+		elif 'USEEXISTINGOUTPUT' in self.gconfigdict.get('GLOBALCONFIG').keys():
+			if self.gconfigdict.get('GLOBALCONFIG').get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']
+                                use_existing = True
+		
+		return use_existing
+	
+	#Check the output directory to determine what runs have an existing output root file.
+	def anl_existing_output(self):
+		has_existing = {}
+		for run in self.runlist.keys():
+			file = self.get_file(run,filetype,self.outputdir)
+			if file != None:
+				has_existing.update({run, True})
+			else:
+				has_existing.update({run, False})
+		return has_existing
+								
+		
 
 			 
 #Standard stage 1 analysis 
@@ -160,15 +197,15 @@ class VAStage1(VAStage):
                 self.rungroups=kwargs.get('rungroups')
 		self.grouptag=kwargs.get('grouptag')
                 self.gconfigdict=kwargs.get('configdict')
-                self.inputdir=kwargs.get('inputdir')
+                self.inputdirs=kwargs.get('inputdirs')
 		self.outputdir=kwargs.get('outputdir')
                 
 		if grouptag != '':
                 	self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
 		else
 			self.stgconfigkey='VASTAGE' + str(self.stage)
-                
                  
+		self.use_existing = self.use_existing_output()
 				
 		#for stage 1, we need to create a combined run list with both calibration and data runs
 		
@@ -177,8 +214,11 @@ class VAStage1(VAStage):
 			self.runlist.update(rg.dataruns)
 			self.runlist.update(rg.calibruns)
 		
+		self.existing_output = self.anl_existing_output()
+		self.use_existing = self.use_existing_output()
+		
 		#Check that the input files exist
-                self.check_for_input('cvbf', self.inputdir, True)
+                self.check_for_input('cvbf', self.inputdirs, True)
 
                 #write config and cut files
                 #cw = config_writer.config_writer(self.stgconfigdict,self.outputdir)
@@ -229,7 +269,7 @@ class VAStage2(VAStage):
 		self.rungroups=kwargs.get('rungroups')
                 self.grouptag=kwargs.get('grouptag')
                 self.gconfigdict=kwargs.get('configdict')
-                self.inputdir=kwargs.get('inputdir')
+                self.inputdirs=kwargs.get('inputdirs')
                 self.outputdir=kwargs.get('outputdir')
 
                 if grouptag != '':
@@ -240,10 +280,13 @@ class VAStage2(VAStage):
                 self.runlist = {}
 		for k, rg in self.rungroups.items():
 			runlist.update(rg.dataruns)
-			
+		
+		self.existing_output = self.anl_existing_output()
+                self.use_existing = self.use_existing_output()
+	
 		#Check that the input files exist
 		self.check_for_input('cvbf', self.gconfigdict.get('GLOBALCONFIG').get('RAWDATADIR'), True)
-		self.check_for_input('root', self.inputdir)
+		self.check_for_input('root', self.inputdirs)
 		
 		self.copy_input_to_output()
 		
@@ -261,10 +304,10 @@ class VAStage2(VAStage):
 		arg_str = ''
 		arg_str = arg_str + '-config='+self.config
 		
-		rawdatafile = get_input_file(run, 'cvbf', self.gconfigdict.get('GLOBALCONFIG').get('RAWDATADIR'), True)
-		calibfile = get_input_file(self.runlist.get(run).calib, 'root', self.inputdir)
+		rawdatafile = get_file(run, 'cvbf', self.gconfigdict.get('GLOBALCONFIG').get('RAWDATADIR'), True)
+		calibfile = get_file(self.runlist.get(run).calib, 'root', self.inputdirs)
 		#Recall that stage 1 file has been copied into the data directory
-		datafile = get_input_file(run, '.root', self.outputdir)
+		datafile = get_file(run, '.root', self.outputdir)
 
 		arg_str = arg_str + ' ' + rawdatafile + ' ' + datafile + ' ' + calibfile
 		
@@ -279,21 +322,26 @@ class VAStage4(VAStage):
 		self.rungroups=kwargs.get('rungroups')
                 self.grouptag=kwargs.get('grouptag')
                 self.gconfigdict=kwargs.get('configdict')
-                self.inputdir=kwargs.get('inputdir')
+                self.inputdirs=kwargs.get('inputdirs')
                 self.outputdir=kwargs.get('outputdir')
 
                 if grouptag != '':
                         self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
                 else
-                        self.stgconfigkey='VASTAGE' + str(self.stage)		
+                        self.stgconfigkey='VASTAGE' + str(self.stage)
+
+		self.use_existing = self.use_existing_output()		
 
                 self.runlist = {}
 		for k, rg in rungroups.items():
 			self.runlist.update(rg.dataruns)
 
                 #Check that the input files exist
-                self.check_for_input('root', self.inputdir)
+                self.check_for_input('root', self.inputdirs)
 		
+		self.existing_output = self.anl_existing_output()
+                self.use_existing = self.use_existing_output()
+
 		self.copy_input_to_output()
 
                 #write config and cut files
@@ -312,12 +360,12 @@ class VAStage4(VAStage):
 		arg_str = arg_str + '-config=' + self.config
 		arg_str = arg_str + ' -cuts=' + self.cuts
 		
-		datafile = get_input_file(run, 'root', self.outputdir)
+		datafile = get_file(run, 'root', self.outputdir)
 		arg_str = arg_str + ' ' + datafile
 		
 		return arg_str
 
-class VAStage5(VAStage4):
+class VAStage5(VAStage):
 	
 	self.stage='5'
 
@@ -326,7 +374,7 @@ class VAStage5(VAStage4):
 		self.rungroups=kwargs.get('rungroups')
                 self.grouptag=kwargs.get('grouptag')
                 self.gconfigdict=kwargs.get('configdict')
-                self.inputdir=kwargs.get('inputdir')
+                self.inputdirs=kwargs.get('inputdirs')
                 self.outputdir=kwargs.get('outputdir')
 
                 if grouptag != '':
@@ -334,12 +382,17 @@ class VAStage5(VAStage4):
                 else
                         self.stgconfigkey='VASTAGE' + str(self.stage)
 
+		self.use_existing = self.use_existing_output()
+
                 self.runlist = {}
 		for k, rg in rungroups.items():
 			self.runlist.update(rg.dataruns)
 
+		self.existing_output = self.anl_existing_output()
+                self.use_existing = self.use_existing_output()		
+
                 #Check that the input files exist
-                self.check_for_input('root', self.inputdir)
+                self.check_for_input('root', self.inputdirs)
 
                 #write config and cut files
                 #cw = config_writer.config_writer(self.stgconfigdict,self.outputdir)
@@ -362,7 +415,7 @@ class VAStage5(VAStage4):
 		timecut_str = self.runlist.get(run).timecuts
 		arg_str = arg_str + ' -ES_CutTimes=' + timecut_str		
 
-		stg4file = get_input_file(run, 'root', self.inputdir)
+		stg4file = get_file(run, 'root', self.inputdirs)
 		stg5file = self.outputdir + '/' + run + '.stg5.root'
 		
 		arg_str = arg_str + ' -inputFile ' + stg4file
@@ -379,7 +432,7 @@ class VAStage6(VAStage):
 		self.rungroups=kwargs.get('rungroups')
                 self.grouptag=kwargs.get('grouptag')
                 self.gconfigdict=kwargs.get('configdict')
-                self.inputdir=kwargs.get('inputdir')
+                self.inputdirs=kwargs.get('inputdirs')
                 self.outputdir=kwargs.get('outputdir')
 
                 if grouptag != '':
@@ -388,7 +441,7 @@ class VAStage6(VAStage):
                         self.stgconfigkey='VASTAGE' + str(self.stage)
 
                 #Check that the input files exist
-                self.check_for_input('root', self.inputdir)
+                self.check_for_input('root', self.inputdirs)
 
 		self.stg6_group_config()
 		self.write_stg6_runlist()
@@ -429,7 +482,7 @@ class VAStage6(VAStage):
 					rl.write('[RUNLIST ID: ' + gidx + ']\n')
 
 				for ridx, run in enumerate(self.rungroups.get(group).dataruns):
-					stg5file = self.get_input_file(run, 'root', self.inputdir)
+					stg5file = self.get_file(run, 'root', self.inputdirs)
 					rl.write(self.inputdir + '/' + stg5file + '\n')
 
 				if gidx !=0:

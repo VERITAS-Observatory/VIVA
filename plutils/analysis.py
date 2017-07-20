@@ -37,7 +37,7 @@ class AnalysisCore():
 
 				stage = k.lower().partition(':')[0]
 				group_tag = k.partition(':')[2]
-				stg_inputdir = self.get_input_dir(k)
+				stg_inputdirs = self.get_input_dirs(k)
 				stg_outputdir = self.get_output_dir(k)				
 					
 				#Get the rungroups to be processed through a different state
@@ -45,7 +45,7 @@ class AnalysisCore():
 			
 				#Get an object of the correct class
 				stg_obj_type = getattr(sys.modules[__name__], stage)
-				stg_obj = stg_obj_type(configdict=self.configdict, rungroups=stg_rungroups, grouptag=group_tag, inputdir=stg_inputdir, outputdir=stg_outputdir)
+				stg_obj = stg_obj_type(configdict=self.configdict, rungroups=stg_rungroups, grouptag=group_tag, inputdirs=stg_inputdirs, outputdir=stg_outputdir)
 
 				self.stg_objs.update({key, stg_obj})
 
@@ -55,21 +55,22 @@ class AnalysisCore():
 			err_str = err_str + 'Check the instructions file to ensure that VASTAGE configurations are defined correctly'
 			raise NoStgConfigsError(err_str)	
 
-	def get_input_dir(self, stgkey):
+	def get_input_dirs(self, stgkey):
 		
 		stg_config = self.configdict.get(stgkey)
-		inputdir = None		
+		inputdirs = []		
 		
 		if 'INPUTDIR' in stg_config.keys():
 			#user override of the inputdirectory
-			inputdir=stg_config.get('INPUTDIR')
+			inputdirs.append(stg_config.get('INPUTDIR'))
 		elif stage_num == '1':
-			inputdir = self.configdict.get('GLOBALCONFIG').get('RAWDATADIR')
+			inputdirs.append(self.configdict.get('GLOBALCONFIG').get('RAWDATADIR'))
 		else:
-			req_stg = self.stg_reqs.get(stgkey)
-			inputdir = self.stg_dirs.get(req_stg)[1]
+			req_stgs = self.stg_reqs.get(stgkey)
+			for req in req_stgs:
+				inputdirs.append(self.stg_dirs.get(req)[1])
 		
-		return inputdir
+		return inputdirs
 
 	def get_output_dir(self, stgkey):
 		stg_config = self.configdict.get(stgkey)
@@ -123,32 +124,56 @@ class AnalysisCore():
 	#For now, indictating an input directory is understood as meaning the data from the previous stage already exist in that directory. 
 	def anl_reqs(self):
 		for k1 in configdict.keys():
+			reqs = []
 			if k1.lower().startswith('vastage'):
 				stg_num = stgnum_from_key(k1)
 				if 'INPUTDIR' in stg_config.keys(k1):
-					self.stg_reqs.update({k1 : ''})
+					reqs.append('')
 				elif stg_num == 1:
 					#The VAStage1 object checks for the existance of the raw data, and there are no requriments based on previous stages.
-					self.stg_req.update({k1 : ''})
+					reqs.append('')
 				else:
 					#Otherwise, each stage depends on the status of the previous stage.
 					prev_stg = str( int(stg_num) - 1)
-					group_str = k1.partition(':')[2]
+					group_strs = k1.split(':')[1:]
 					for k2 in configdict.keys():
 						if k2.lower().startswith('vastage'+prev_stg):
-							if k2.partition(':')[2].find(group_str) != -1:
-								self.stg_reqs.update({k1 : k2})
+							for gs in group_strs:
+								if gs in k2.split(':')[1:]:
+									reqs.append(k2)
+
+				self.stg_reqs.update({k1 : reqs})
 	
 	#For a given stage key, return the requirement for that stage and the status of that requirment
 	def check_reqs(self, stgkey):
-		req_stg = self.stg_reqs(stgkey)
+		req_stgs = self.stg_reqs(stgkey)
 		status = None
-		if req_stg == ''
+		if len(req_stgs) == 0: #No reqs case 1 (this case should not currently occur)
+			status = 'succeeded'
+		elif len(req_stgs) == 1 and req_stgs[0] == '': #No reqs case 2
 			status = 'succeeded'
 		else:
-			status = self.stg_objs(req_stg).get_status()
+			n_executing = 0
+                	n_succeeded = 0
+                	n_failed = 0
+			
+			for stg in req_stgs:
+				req_status = self.stg_objs.get(stg).get_status
+				if re_status == 'executing':
+					n_executing = n_executing + 1
+				elif req_status == 'succeeded':
+					n_succeeded = n_succeeded + 1
+				elif req_status == 'failed':
+					n_failed = n_failed + 1
+			
+			if n_executing > 0 and n_failed == 0:
+				status = 'executing'
+			elif n_succeeded == len(req_stgs):
+				status == 'succeeded'
+			elif n_succeeded + n_failed == len(req_stgs):
+				status = 'failed'
 		
-		return [req_stg, status]
+		return [req_stgs, status]
 
 	def update_status(self):
 
