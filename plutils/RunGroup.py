@@ -14,7 +14,7 @@ class RunGroup:
         self.rundict = createrundict(self)
         self.rundict = getcalibrun(self)
         self.rundict = getddate(self) 
-        
+    rundict = {}    
     #createrundict and timecuts         
     def createrundict(self):
         rundict = {}
@@ -53,4 +53,5 @@ class RunGroup:
                 self.rundict[groupname][runnum] = {}
                 self.rundict[groupname][runnum]['calibrun'] = dbcnx.get_ddate(runnum)
         return self.rundict
-        
+    run = Run(runnum, calib, ddate, timecuts)
+    rundict.update({runnum:run})   
