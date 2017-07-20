@@ -27,8 +27,8 @@ class writer:
             
     #test existance and write original if not 
     def writeori(self):   
-        subprocess.call([self.vastage,'-save_config_and_exit','=', self.outputdir + self.configfile])
-        subprocess.call([self.vastage,'-save_cuts_and_exit','=', self.outputdir + self.cutsfile])
+        subprocess.call([self.vastage,'-save_config_and_exit=' + self.outputdir + self.configfile])
+        subprocess.call([self.vastage,'-save_cuts_and_exit=' + self.outputdir + self.cutsfile])
     
     #write config
     def write(self):
@@ -53,7 +53,7 @@ class writer:
                         sys.stdout.write(line)         
         
     def run(self):
-        writer.check(self)
+        writer.writeori(self)
         writer.write(self)
          
 ''' run example
