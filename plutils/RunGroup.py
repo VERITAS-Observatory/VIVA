@@ -37,11 +37,7 @@ class RunGroup:
                 self.rundict[groupname][runnum] = {}
                 self.rundict[groupname][runnum]['calibrun'] = dbcnx.get_calib_run(runnum)
         return self.rundict
-        
-        
-        
-        
-    
+            
     def getddate(self):
         for groupname in self.rundict:
             for runnum in self.rundict[groupname]:
