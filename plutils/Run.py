@@ -1,6 +1,6 @@
 class Run:
-    def __init__(self, runnum):
+    def __init__(self, runnum, calib, ddate, timecuts):
         self.runnum = runnum
-        self.timecuts = tcdict[self.runnum]
-        self.ddate = DBConnection.get_ddate[self.runnum]
-        self.calib_run = DBConnection.get_calib_run[self.runnum]
+        self.calib = calib
+        self.ddate = ddate
+        self.timecuts = timecuts
