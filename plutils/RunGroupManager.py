@@ -30,6 +30,8 @@ class RunGroupManager:
             else:
                 print ('no groupname ' + groupname)
         return partdict
-                
-dict = {}
-group = RunGroup(
+
+#what are the variables for RunGroup?
+groupdict = {}
+group = RunGroup( )
+groupdict.update({k:RunGroup})
