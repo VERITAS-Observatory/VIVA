@@ -3,6 +3,7 @@
 import sys
 import time
 from plutils import *
+from plutils import reader
 
 inst_filename = sys.argv[1]
 
@@ -66,4 +67,15 @@ print('Job should have terminated...')
 print('    status = ', cs.status)
 print('    exit status = ', cs.exitstatus)
 	
+read_inst = reader.reader(inst_filename)
+configdict = read_inst.dict
+print ('configdict: ', configdict)
+
+#RunGroupmanager
+#return whole groupdict from configdict
+rgm = RunGroupManager(configdict)
+groupdict = rgm.groupdict
+#return part of group dict based on groupstring(type = str, seperated by : )
+rgm = RunGroupManager(configdict,**groupstring)
+groupdict = rgm.partdict
 
