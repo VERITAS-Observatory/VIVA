@@ -4,27 +4,6 @@ import subprocess
 import os
 import time
 
-#class CondorHandler:
-	
-#	self.use_condor_key="USECONDOR"
-
-#	def __init__(self, *args, **kwargs):
-#		self.config_dict=kwargs.get('configdict')
-
-	#Checks whether condor has been enabled for each key in the configuration dictionary
-	#Creates a dictionary in the form {CONFIGKEY : True/False}
-	#The local configuration had precedence over the global configuration
-#	def build_config_dict(self):
-#		self.condor_config_dict = {}
-#		for k in self.config_dict.keys()
-#			if self.use_condor_key in self.config_dict.get(k).keys()
-#				if self.config_dict.get(k).get(self.use_condor_key) in ['1', 'true', 'True', 'TRUE']:
-#					self.condor_config_dict.update({k : True})
-#				else:
-#					self.condor_config_dict.update({k : False})
-					
-	
-
 class CondorJob:
 	
 	def __init__(self, **kwargs):
@@ -82,19 +61,7 @@ class CondorJob:
 		jobid_subidx = jobid_subidx[:2].lstrip('0') + jobid_subidx[2]
 		
 		self.jobid = jobid_num + '.' + jobid_subidx
-		#sp=subprocess.run(['condor_userlog', log_filename], stdout=subprocess.PIPE)
-		#loginfo=sp.stdout.decode('utf-8')
-		#Parse the information returned by condor_userlog to get the job ID
-		#The following was written for the output from condor_userlog using Condor 8.2.2
-		#loginfo_lines=loginfo.splitlines()
-		#for line in loginfo_lines:
-		#	print(line)
-		#	if line == '':
-		#		loginfo_lines.remove(lines)
 
-		#self.jobid=loginfo_lines[1].split()[0]
-		
-		
 	def submit(self):
 
 		#check for old logfile and remove if found.
@@ -117,7 +84,6 @@ class CondorJob:
 				err_str = err_str + e + '\n'
 			raise CondorSubmissionError(err_str)
  		
-		#time.sleep(1.0) #Condor needs some time to write the log file
 		self.get_job_id()
 		self.status='submitted'
 	

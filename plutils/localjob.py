@@ -72,8 +72,14 @@ class LocalJob():
 
 		self.executable=kwargs.get('executable')
 		self.args = kwargs.get('args')
-		self.out = kwargs.get('out')
-		self.error = kwargs.get('error')
+		
+		self.out = None
+		if 'out' in kwargs.keys():
+			self.out = kwargs.get('out')
+
+		self.error = None
+		if 'error' in kwargs.keys()
+			self.error = kwargs.get('error')
 	
 		self.proc = None
 		self.exitstatus = None
@@ -81,7 +87,7 @@ class LocalJob():
 		self.status = 'initialized'
 
 	def execute(self):
-		self.proc = subprocess.Popen([self.executable, self.args])
+		self.proc = subprocess.Popen([self.executable, self.args], stdout=subprocess.PIPE, stderr = subprocess.PIPE)
 		self.status = 'submitted'
 
 	def update_status(self):
@@ -101,4 +107,17 @@ class LocalJob():
 	def kill(self):
 		self.proc.kill()
 		self.update_status()
-		
+
+	def get_stdout(self):
+		return self.proc.stdout.peek().decode('utf-8')
+	
+	#Read from the buffer for stdout. Note that this operation clears the buffer.
+	def read_stdout(self):
+		return self.proc.stdout.read().decode('utf-8')
+	
+	def get_stderr(self)
+		return self.proc.stderr.peek().decode('utf-8')
+
+	#Read from the buffer for stdout. Note that this operation clears the buffer.
+        def read_stderr(self):
+                return self.proc.stderr.read().decode('utf-8')		

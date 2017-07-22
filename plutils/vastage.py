@@ -46,7 +46,7 @@ class VAStage:
 					if self.existing_output.get(run) == True:
 						#A file for this run already exist in the output directory
 						job.status = 'succeeded'
-                                                job.exit_status = '0'						
+                                                job.existstatus = '0'						
 					else:
 						job.execute()
 		else:
@@ -69,8 +69,8 @@ class VAStage:
 				n_executing = n_executing + 1
 			elif jstatus == 'terminated':
 				n_terminated = n_terminated + 1
-				jexit_status = self.jobs(run).exitstatus
-				if jexit_status != '0'
+				jexiststatus = self.jobs(run).exitstatus
+				if jexiststatus != '0'
 					n_failed = n_failed + 1
 		#Abort processing this run group if one of the runs fails	
 		if n_failed > 0:
@@ -202,7 +202,7 @@ class VAStage:
 						
                                 elif co.lower() == 'output_bad':
 					for run in stg.runlist.keys()
-						if stg.jobs.get(run).exit_status != '0':
+						if stg.jobs.get(run).existstatus != '0':
 							file = get_file(run,'root',[self.outputdir])
 							subprocess.run(['rm', file])
                                                                 
@@ -215,7 +215,7 @@ class VAStage:
 					
                                 elif co.lower() == 'logs_bad':
 					for run in stg.runlist.key():
-						if stg.jobs(run).exit_status != '0':
+						if stg.jobs(run).existstatus != '0':
 							run_logfile_pat = re.compile('.*' + run + '[.](log|err|out|sub)')
 							for file in os.listdir(self.outputdir):
 								m = run_logfile_pat.match(file)
