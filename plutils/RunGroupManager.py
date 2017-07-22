@@ -11,8 +11,6 @@ class RunGroupManager:
         self.configdict = configdict
         self.gconfig = self.configdict.get('GlobalConfig')
         self.groupdict = RunGroupManager.getdict(self)
-        self.groupname = groupname
-        self.partdict = RunGroupManager.getpart(self)
         
     
     def getdict(self):
@@ -32,5 +30,8 @@ class RunGroupManager:
             else:
                 print ('no groupname ' + groupname)
         return partdict
-                
 
+#what are the variables for RunGroup?
+groupdict = {}
+group = RunGroup( )
+groupdict.update({k:RunGroup})

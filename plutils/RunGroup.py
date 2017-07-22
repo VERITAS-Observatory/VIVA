@@ -9,19 +9,21 @@ Created on Wed Jul 19 11:19:43 2017
        
         
 class RunGroup:
-    def __init__(self, groupdict):
-        self.groupdict = groupdict
+    def __init__(self, rlfile, DBconnection):
+        self.rlfile = rlfile 
+        self.dbconnection = DBconnection
+       #change to update instead of reassignment
         self.rundict = createrundict(self)
         self.rundict = getcalibrun(self)
         self.rundict = getddate(self) 
-    rundict = {}    
+        rundicts = createrundicts()
+        self.datarundict = rundicts[0]
+        self.calibrundict = rundicts[1]
     #createrundict and timecuts         
-    def createrundict(self):
-        rundict = {}
-        for key,value in self.groupdict.items():
-            rundict[key] = {}
-            for runlistfile in value:
-                with open(runlistfile) as rl:
+    def createrundicts(self):
+        datarundict = {}
+        calibrundict = {}
+                with open(self.rlfile) as rl:
                     content = rl.readlines()
                     for s in content:
                         sl = s.split(maxsplit=1)
@@ -35,23 +37,13 @@ class RunGroup:
                         elif len_sl == 0:
                             continue
                         #calib and date
-                        rundict[key][runnum] = {}
-                        rundict[key][runnum]['timecut'] = timecut
-            del rundict[key]['runnum']
-        return rundict
+                        calibrunnum = self.dbconnection.get_calib_run(runnum)
+                        ddate = self.dbconnection.get_ddate(runnum)
+                        run = Run(runnum, calibrunnum, ddate, timecuts)
+                        datarundict.update({runnum:run})  
+                        if not calibrunnum in calibrundict.keys():
+                                   calibrun = Run(calibrunnum, None, ddate, None)
+                                   calibrundict.update({calibrunnum:calibrun})
+        return [datarundict, calibrundict] 
+ 
     
-    def getcalibrun(self):
-        for groupname in self.rundict:
-            for runnum in self.rundict[groupname]:
-                self.rundict[groupname][runnum] = {}
-                self.rundict[groupname][runnum]['calibrun'] = dbcnx.get_calib_run(runnum)
-        return self.rundict
-            
-    def getddate(self):
-        for groupname in self.rundict:
-            for runnum in self.rundict[groupname]:
-                self.rundict[groupname][runnum] = {}
-                self.rundict[groupname][runnum]['calibrun'] = dbcnx.get_ddate(runnum)
-        return self.rundict
-    run = Run(runnum, calib, ddate, timecuts)
-    rundict.update({runnum:run})   
