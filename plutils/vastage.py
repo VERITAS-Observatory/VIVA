@@ -4,7 +4,8 @@ import subprocess
 import os
 import re
 import time
-#from . import config_writer
+from . import writer
+from . import runmanager
 from . import condor
 
 #Base class consisting of the shared methods of the VEGAS analysis stages.
@@ -12,11 +13,11 @@ class VAStage:
 			
 	def is_condor_enabled(self):
 		
-		if 'USECONDOR' in stgconfigdict.keys():
-			if stgconfigdict.get('USECONDOR') in ['1','True', 'true']:
+		if 'USECONDOR' in configdict.get(self.stgconfigkey).keys():
+			if configdict.get(self.stgconfigkey).get('USECONDOR') in ['1','True', 'true']:
 				self.usecondor = True
-		elif 'USECONDOR' in gconfigdict.get('GLOBALCONFIG').keys():
-			if gconfigdict.get('GLOBALCONFIG').get('USECONDOR') in ['1', 'True', 'true']:
+		elif 'USECONDOR' in configdict.get('GLOBALCONFIG').keys():
+			if configdict.get('GLOBALCONFIG').get('USECONDOR') in ['1', 'True', 'true']:
 				self.usecondor = True
 		else
 			self.usecondor = False
@@ -165,11 +166,11 @@ class VAStage:
 
 		use_existing = False
 		
-		if 'USEEXISTINGOUTPUT' in self.gconfigdict.get(self.stgconfigkey).keys():
-			if self.gconfigdict.get(self.stgconfigkey).get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']
+		if 'USEEXISTINGOUTPUT' in self.configdict.get(self.stgconfigkey).keys():
+			if self.configdict.get(self.stgconfigkey).get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']
 				use_existing = True
-		elif 'USEEXISTINGOUTPUT' in self.gconfigdict.get('GLOBALCONFIG').keys():
-			if self.gconfigdict.get('GLOBALCONFIG').get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']
+		elif 'USEEXISTINGOUTPUT' in self.configdict.get('GLOBALCONFIG').keys():
+			if self.configdict.get('GLOBALCONFIG').get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']
                                 use_existing = True
 		
 		return use_existing
@@ -233,7 +234,7 @@ class VAStage1(VAStage):
       
                 self.rungroups=kwargs.get('rungroups')
 		self.grouptag=kwargs.get('grouptag')
-                self.gconfigdict=kwargs.get('configdict')
+                self.configdict=kwargs.get('configdict')
                 self.inputdirs=kwargs.get('inputdirs')
 		self.outputdir=kwargs.get('outputdir')
                 
@@ -248,8 +249,8 @@ class VAStage1(VAStage):
 		
 		self.runlist = {}
 		for k, rg in self.rungroups.items():
-			self.runlist.update(rg.dataruns)
-			self.runlist.update(rg.calibruns)
+			self.runlist.update(rg.datarundict)
+			self.runlist.update(rg.calibrundict)
 		
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
@@ -257,9 +258,9 @@ class VAStage1(VAStage):
 		#Check that the input files exist
                 self.check_for_input('cvbf', self.inputdirs, True)
 
-                #write config and cut files
-                #cw = config_writer.config_writer(self.stgconfigdict,self.outputdir)
-                #self.config=get_config_filename()
+                #write config file
+                cw = write.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+                self.config = cw.write('config')
 
                 #write condor files (if condor enables)
 		if self.is_condor_enabled():
@@ -271,14 +272,14 @@ class VAStage1(VAStage):
 		arg_str = ''
     			
 			arg_str = arg_str + "-Stage1_DBHost=" + gconfigdict.get('GLOBALCONFIG').get('DBHOSTNAME')
-			if self.runlist(run).type == 'calib':
+			if self.runlist.get(run).runtype == 'calib':
 				arg_str = arg_str + " -Stage1_RunMode=" + "flasher"
 			else:
 				arg_str = arg_str + " -Stage1_RunMode=" + "data"
 			
 			arg_str = arg_str + " -config=" + self.configfile			
 			
-			rawdir = gconfigdict.get('GLOBALCONFIG').get('RAWDATADIR') + '/' + self.runlist(run).ddate
+			rawdir = configdict.get('GLOBALCONFIG').get('RAWDATADIR') + '/' + self.runlist(run).ddate
 			#Check for the file in the raw data directory
 			pattern=re.compile(run + '*.cvbf')
 			file_exist=False
@@ -305,7 +306,7 @@ class VAStage2(VAStage):
                
 		self.rungroups=kwargs.get('rungroups')
                 self.grouptag=kwargs.get('grouptag')
-                self.gconfigdict=kwargs.get('configdict')
+                self.configdict=kwargs.get('configdict')
                 self.inputdirs=kwargs.get('inputdirs')
                 self.outputdir=kwargs.get('outputdir')
 
@@ -316,20 +317,20 @@ class VAStage2(VAStage):
  
                 self.runlist = {}
 		for k, rg in self.rungroups.items():
-			runlist.update(rg.dataruns)
+			runlist.update(rg.datarundict)
 		
 		self.existing_output = self.anl_existing_output()
                 self.use_existing = self.use_existing_output()
 	
 		#Check that the input files exist
-		self.check_for_input('cvbf', self.gconfigdict.get('GLOBALCONFIG').get('RAWDATADIR'), True)
+		self.check_for_input('cvbf', self.configdict.get('GLOBALCONFIG').get('RAWDATADIR'), True)
 		self.check_for_input('root', self.inputdirs)
 		
 		self.copy_input_to_output()
 		
-                #write config and cut files
-                #cw = config_writer.config_writer(self.stgconfigdict,self.outputdir)
-                #self.config=get_config_filename()
+                #write config file
+                cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+                self.config = cw.write('config')
 
                 #write condor files (if condor enables)
                 if self.is_condor_enabled():
@@ -341,7 +342,7 @@ class VAStage2(VAStage):
 		arg_str = ''
 		arg_str = arg_str + '-config='+self.config
 		
-		rawdatafile = get_file(run, 'cvbf', self.gconfigdict.get('GLOBALCONFIG').get('RAWDATADIR'), True)
+		rawdatafile = get_file(run, 'cvbf', self.configdict.get('GLOBALCONFIG').get('RAWDATADIR'), True)
 		calibfile = get_file(self.runlist.get(run).calib, 'root', self.inputdirs)
 		#Recall that stage 1 file has been copied into the data directory
 		datafile = get_file(run, '.root', self.outputdir)
@@ -358,7 +359,7 @@ class VAStage4(VAStage):
 		
 		self.rungroups=kwargs.get('rungroups')
                 self.grouptag=kwargs.get('grouptag')
-                self.gconfigdict=kwargs.get('configdict')
+                self.configdict=kwargs.get('configdict')
                 self.inputdirs=kwargs.get('inputdirs')
                 self.outputdir=kwargs.get('outputdir')
 
@@ -371,7 +372,7 @@ class VAStage4(VAStage):
 
                 self.runlist = {}
 		for k, rg in rungroups.items():
-			self.runlist.update(rg.dataruns)
+			self.runlist.update(rg.datarundict)
 
                 #Check that the input files exist
                 self.check_for_input('root', self.inputdirs)
@@ -382,9 +383,9 @@ class VAStage4(VAStage):
 		self.copy_input_to_output()
 
                 #write config and cut files
-                #cw = config_writer.config_writer(self.stgconfigdict,self.outputdir)
-                #self.cuts=cw.get_cuts_filename()
-                #self.config=get_config_filename()
+                cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+                self.config = cw.write('config')
+                self.cuts = cw.write('cuts')
 
                 #write condor files (if condor enables)
                 if self.is_condor_enabled():
@@ -423,7 +424,7 @@ class VAStage5(VAStage):
 
                 self.runlist = {}
 		for k, rg in rungroups.items():
-			self.runlist.update(rg.dataruns)
+			self.runlist.update(rg.datarundict)
 
 		self.existing_output = self.anl_existing_output()
                 self.use_existing = self.use_existing_output()		
@@ -432,10 +433,10 @@ class VAStage5(VAStage):
                 self.check_for_input('root', self.inputdirs)
 
                 #write config and cut files
-                #cw = config_writer.config_writer(self.stgconfigdict,self.outputdir)
-                #self.cuts=cw.get_cuts_filename()
-                #self.config=get_config_filename()
-
+                cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+                self.config = cw.write('config')
+                self.cuts = cw.write('cuts')
+                
                 #write condor files (if condor enables)
                 if self.is_condor_enabled():
                         self.write_condor_files()
@@ -468,7 +469,7 @@ class VAStage6(VAStage):
 
 		self.rungroups=kwargs.get('rungroups')
                 self.grouptag=kwargs.get('grouptag')
-                self.gconfigdict=kwargs.get('configdict')
+                self.configdict=kwargs.get('configdict')
                 self.inputdirs=kwargs.get('inputdirs')
                 self.outputdir=kwargs.get('outputdir')
 
@@ -484,9 +485,9 @@ class VAStage6(VAStage):
 		self.write_stg6_runlist()
 
                 #write config and cut files
-                #cw = config_writer.config_writer(self.stgconfigdict,self.outputdir)
-                #self.cuts=cw.get_cuts_filename()
-                #self.config=get_config_filename()
+                cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+                self.config = cw.write('config')
+                self.config = cw.write('cuts')
 
                 #write condor files (if condor enables)
                 if self.is_condor_enabled():
@@ -518,7 +519,7 @@ class VAStage6(VAStage):
 				if gidx != 0:
 					rl.write('[RUNLIST ID: ' + gidx + ']\n')
 
-				for ridx, run in enumerate(self.rungroups.get(group).dataruns):
+				for ridx, run in enumerate(self.rungroups.get(group).datarundict):
 					stg5file = self.get_file(run, 'root', self.inputdirs)
 					rl.write(self.inputdir + '/' + stg5file + '\n')
 
@@ -540,7 +541,7 @@ class VAStage6(VAStage):
 		self.ea_dict = {}		
 		for group in self.rungroups.keys():
 			config_list = []
-			for k, v in self.stgconfigdict.items():
+			for k, v in self.configdict.get(self.stgconfigkey).items():
 				if group == k.partition(':')[2]:
 					opt = k.partition(':')[0]
 					if opt == 'EA':

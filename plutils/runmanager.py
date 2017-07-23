@@ -35,7 +35,7 @@ class RunGroupManager:
     def get_group_dict(self):
         return self.groupdict	
     
-    def get_sub_group(self, sub_grp_str):
+    def get_run_groups(self, sub_grp_str):
         sub_grp_dict = {}
         for grp in sub_grp_str.split(':'):
             if grp in self.groupdict.keys(): 
@@ -72,18 +72,19 @@ class RunGroup:
                 #calib and date
                 calibrunnum = dbconnection.get_calib_run(runnum)
                 ddate = dbconnection.get_ddate(runnum)
-                run_obj = Run(runnum, calibrunnum, ddate, timecuts)
+                run_obj = Run(runnum, 'data', calibrunnum, ddate, timecuts)
                 datarundict.update({runnum:run_obj})  
                 if not calibrunnum in calibrundict.keys():
-                    calibrun_obj = Run(calibrunnum, None, ddate, None)
+                    calibrun_obj = Run(calibrunnum, 'calib', None, ddate, None)
                     calibrundict.update({calibrunnum:calibrun_obj})
 
         return [datarundict, calibrundict] 
  
     
 class Run:
-    def __init__(self, runnum, calib, ddate, timecuts):
+    def __init__(self, runnum, runtype, calib, ddate, timecuts):
         self.runnum = runnum
+        self.runtype = runtype
         self.calib = calib
         self.ddate = ddate
         self.timecuts = timecuts

@@ -3,7 +3,6 @@
 import sys
 import time
 from plutils import *
-from plutils import reader
 
 inst_filename = sys.argv[1]
 
@@ -49,7 +48,7 @@ print('-'*25)
 print('Testing condor functionality')
 
 print('Attempting initalization/configuration...')
-cs=condor.CondorJob(executable='sleep_test.sh', arguments='20', universe='vanilla', workingdir='/home/vhep/ssscott/tmp', log='condor_test.log', output='condor_test.out', error='condor_test.error', requirements='')
+cs=condor.CondorJob(executable='sleep_test.sh', arguments='5', universe='vanilla', workingdir='/home/vhep/ssscott/tmp', log='condor_test.log', output='condor_test.out', error='condor_test.error', requirements='')
 
 print('    status = ', cs.status)
 print('Attempting submission...')
@@ -66,16 +65,44 @@ while(cs.get_status() != 'terminated'):
 print('Job should have terminated...')
 print('    status = ', cs.status)
 print('    exit status = ', cs.exitstatus)
-	
-read_inst = reader.reader(inst_filename)
-configdict = read_inst.dict
+
+print('-'*25)
+print('Testing instructions file reader')
+read_inst = reader.InstFileReader(inst_filename)
+configdict = read_inst.get_config_dict()
 print ('configdict: ', configdict)
 
-#RunGroupmanager
-#return whole groupdict from configdict
-rgm = RunGroupManager(configdict)
-groupdict = rgm.groupdict
-#return part of group dict based on groupstring(type = str, seperated by : )
-rgm = RunGroupManager(configdict,**groupstring)
-groupdict = rgm.partdict
+print('-'*25)
+print('Testing config file writer')
+cw = writer.ConfigWriter(configdict,'Stage6',6, '/home/vhep/ssscott/tmp') 
+cw.write('config')
+cw.write('cuts')
+print('    Config file: ', cw.configfilepath)
+print('    Cuts file: ', cw.cutsfilepath)
 
+# Run Group Manager
+print('-'*25)
+print('Testing run group manager functionality')
+rgm = runmanager.RunGroupManager(configdict,dbcnx)
+grpdict = rgm.get_group_dict()
+print('    Groupdict:')
+print('   ', grpdict)
+subgroup1 = 'GRP1:GRP2'
+subgroup2 = 'GRP1' 
+print('   subgroup1: ', subgroup1)
+rg1 = rgm.get_sub_group(subgroup1)
+print('   ', rg1)
+for grpid,rg in rg1.items():
+	for rid,r in rg.datarundict.items():
+		print('   datarun: {0} {1} {2} {3}'.format(r.runnum, r.ddate, r.calib, r.timecuts))
+	for rid,r in rg.calibrundict.items():
+		print('   calibrun: {0} {1}'.format(r.runnum, r.ddate))
+		
+rg2 =rgm.get_sub_group(subgroup2)
+print('   subgroup2: ', rg2)
+print('   ', rg2)
+for grpid,rg in rg2.items():
+	for rid,r in rg.datarundict.items():
+		print('   datarun: {0} {1} {2} {3}'.format(r.runnum, r.ddate, r.calib, r.timecuts))
+	for rid,r in rg.calibrundict.items():
+		print('   calibrun: {0} {1}'.format(r.runnum, r.ddate))

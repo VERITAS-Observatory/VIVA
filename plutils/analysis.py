@@ -1,10 +1,12 @@
 #analysis.py: Top-level analysis class for the pipeline
 
 import sys
+import os
 import subprocess
 import time
 import re
 from . import vastage
+from . import runmanager
 
 class AnalysisCore():
 	def __init__(self, **kwargs):
@@ -14,8 +16,8 @@ class AnalysisCore():
 		self.configdict=kwargs.get('configdict')
 		self.runmanager=kwargs.get('runmanager')
 
-		self.workingdir=self.configdict.get('GLOBALCONFIG').get('WORKINGDIR')
-		
+		self.workingdir=self.configdict.get('GLOBALCONFIG').get('WORKINGDIR') 		
+
 		self.n_stgs = 0
 		self.stg_objs = {}
 		self.stg_dirs = {}

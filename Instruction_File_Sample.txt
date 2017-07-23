@@ -1,14 +1,14 @@
 Instruction_File_Sample
 
 GLOBALCONFIG{
-VEGASDir=
-WorkingDir=
-RawDataDir=
-Runlist=
-Database=
-DBHOSTNAME=
-DBNAME=
-DBUSERNAME=
+#VEGASDir=
+WORKINGDIR=
+#RawDataDir=
+RUNLIST:GRP1=./test.rl
+RUNLIST:GRP2=./test2.rl
+DBHOSTNAME=romulus.ucsc.edu
+DBNAME=VERITAS
+DBUSERNAME=readonly
 }
 
 
