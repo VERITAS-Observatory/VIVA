@@ -7,55 +7,74 @@ Created on Mon Jul 17 18:57:34 2017
 """
 
 import os
-import fileinput
+#import fileinput
 import sys
 import subprocess
 
 
-class writer:
+class ConfigWriter:
     
-    def __init__(self, configdict, stagedict, stagenum, outputdir):
+    def __init__(self, configdict, stagekey, stagenum, outputdir):
         self.configdict = configdict
-        self.stagedict = stagedict
+        self.stagekey = stagekey
         self.stagenum = stagenum
-        self.stagename = self.stagedict[stagenum]
-        self.configfile = str(self.stagename) + 'config.txt'
-        self.cutsfile = str(self.stagename) + 'cuts.txt'
+        self.stagename = stagekey.lower().replace(':','-')
+        self.configfilename = self.stagename + '_config.txt'
+        self.cutsfilename = self.stagename + '_cuts.txt'
         self.vastage = 'vaStage' + str(stagenum)
         self.outputdir = outputdir
+        if not self.outputdir.endswith('/'):
+            self.outputdir = self.outputdir + '/'
         
+        self.configfilepath = None
+        self.cutsfilepath = None
             
     #test existance and write original if not 
-    def writeori(self):   
-        subprocess.call([self.vastage,'-save_config_and_exit=' + self.outputdir + self.configfile])
-        subprocess.call([self.vastage,'-save_cuts_and_exit=' + self.outputdir + self.cutsfile])
+    def write_template(self,template_type):
+        template_file = self.outputdir + template_type + '.tmp'
+
+        #Remove existing templates, just in case vegas version has changed.
+        subprocess.run(['rm','-f',template_file])
+
+        subprocess.run([self.vastage,'-save_' + template_type + '_and_exit=' + template_file], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if os.path.isfile(template_file):
+            return template_file
+        else:
+            err_str = 'Failed to write template {0} file for VASTAGE{1}:{2} in {3}.'.format(template_type, self.stagenum,self.stagekey,self.outputdir)
+        raise Exception(err_str)
     
     #write config
-    def write(self):
-        for line in fileinput.input(self.outputdir + self.cutsfile):
-            for key in self.configdict[self.stagename]:
-                    if key in line:
-                        strconfig = str(self.configdict[self.stagename][key])
-                        strconfig = strconfig.replace('[','')
-                        strconfig = strconfig.replace(']','')
-                        rep = str(key) + '=' + strconfig
-                        line = line.replace(line, rep)
-                        sys.stdout.write(line)
-                    
-        for line in fileinput.input(self.outputdir + self.configfile):
-            for key in self.configdict[self.stagename]:
-                    if key in line:
-                        strconfig = str(self.configdict[self.stagename][key])
-                        strconfig = strconfig.replace('[','')
-                        strconfig = strconfig.replace(']','')
-                        rep = str(key) + '=' + strconfig
-                        line = line.replace(line, rep)
-                        sys.stdout.write(line)         
+    def write(self, conf_type):
+        template_lines = []
+        template_file = self.write_template(conf_type)
+        with open(template_file, 'r') as f:
+            template_lines = f.readlines() 
         
-    def run(self):
-        writer.writeori(self)
-        writer.write(self)
-         
+        if conf_type == 'config':
+            filepath = self.outputdir + self.configfilename
+        elif conf_type == 'cuts': 
+            filepath = self.outputdir + self.cutsfilename
+
+        with open(filepath, 'w') as conf_file:
+            for line in template_lines:
+                if not line.startswith('#') and not line.isspace():
+                    opt = line.split()[0]
+                    if opt in self.configdict[self.stagekey].keys():
+                        val = self.configdict[self.stagekey][opt]
+                        rep = opt + ' ' + val
+                        line = line.replace(line, rep)
+                        conf_file.write(line)
+                    else:
+                        conf_file.write(line)
+                else:
+                    conf_file.write(line)
+        
+        if conf_type == 'config':
+            self.configfilepath = filepath
+        elif conf_type == 'cuts':        
+            self.cutsfilepath = filepath
+        return filepath     
+
 ''' run example
 stagedict = {1:'Stage1', 2:'Stage2', 4.2:'Stage4', 5:'Stage5', 6:'Stage6'}
 configdict = {'GlobalConfig': {'Database': [''],

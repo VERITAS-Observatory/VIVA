@@ -17,7 +17,7 @@ class CondorJob:
 		self.error=kwargs.get('error')
 		if 'subid' in kwargs.keys():
 			self.subid=kwargs.get('subid')
-		else
+		else:
 			self.subid = ''
 		
 		if not self.workingdir.endswith('/'):
