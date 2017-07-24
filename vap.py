@@ -42,7 +42,7 @@ src_id=dbcnx.get_source_id(tmp_runnum)
 print('    flasher run = ', flasher)
 print('    ddate = ', ddate)
 print('    src_id = ', src_id)
-
+'''
 #Test condor functionality
 print('-'*25)
 print('Testing condor functionality')
@@ -65,6 +65,7 @@ while(cs.get_status() != 'terminated'):
 print('Job should have terminated...')
 print('    status = ', cs.status)
 print('    exit status = ', cs.exitstatus)
+'''
 
 print('-'*25)
 print('Testing instructions file reader')
@@ -72,13 +73,15 @@ read_inst = reader.InstFileReader(inst_filename)
 configdict = read_inst.get_config_dict()
 print ('configdict: ', configdict)
 
+"""
 print('-'*25)
 print('Testing config file writer')
-cw = writer.ConfigWriter(configdict,'Stage6',6, '/home/vhep/ssscott/tmp') 
+cw = writer.ConfigWriter(configdict,'VASTAGE1:GRP1',1, '/home/vhep/ssscott/tmp') 
 cw.write('config')
 cw.write('cuts')
 print('    Config file: ', cw.configfilepath)
 print('    Cuts file: ', cw.cutsfilepath)
+"""
 
 # Run Group Manager
 print('-'*25)
@@ -90,7 +93,7 @@ print('   ', grpdict)
 subgroup1 = 'GRP1:GRP2'
 subgroup2 = 'GRP1' 
 print('   subgroup1: ', subgroup1)
-rg1 = rgm.get_sub_group(subgroup1)
+rg1 = rgm.get_run_groups(subgroup1)
 print('   ', rg1)
 for grpid,rg in rg1.items():
 	for rid,r in rg.datarundict.items():
@@ -98,7 +101,7 @@ for grpid,rg in rg1.items():
 	for rid,r in rg.calibrundict.items():
 		print('   calibrun: {0} {1}'.format(r.runnum, r.ddate))
 		
-rg2 =rgm.get_sub_group(subgroup2)
+rg2 =rgm.get_run_groups(subgroup2)
 print('   subgroup2: ', rg2)
 print('   ', rg2)
 for grpid,rg in rg2.items():
@@ -106,3 +109,11 @@ for grpid,rg in rg2.items():
 		print('   datarun: {0} {1} {2} {3}'.format(r.runnum, r.ddate, r.calib, r.timecuts))
 	for rid,r in rg.calibrundict.items():
 		print('   calibrun: {0} {1}'.format(r.runnum, r.ddate))
+
+#Analysis Testing
+print('-'*25)
+print('Initalizing analysis core...')
+ac = analysis.AnalysisCore(configdict=configdict, runmanager=rgm)
+print('Status = {0}'.format(ac.get_status()))
+print('Executing...')
+ac.execute()

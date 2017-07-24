@@ -13,13 +13,13 @@ class VAStage:
 			
 	def is_condor_enabled(self):
 		
-		if 'USECONDOR' in configdict.get(self.stgconfigkey).keys():
-			if configdict.get(self.stgconfigkey).get('USECONDOR') in ['1','True', 'true']:
+		if 'USECONDOR' in self.configdict.get(self.stgconfigkey).keys():
+			if self.configdict.get(self.stgconfigkey).get('USECONDOR') in ['1','True', 'true']:
 				self.usecondor = True
-		elif 'USECONDOR' in configdict.get('GLOBALCONFIG').keys():
-			if configdict.get('GLOBALCONFIG').get('USECONDOR') in ['1', 'True', 'true']:
+		elif 'USECONDOR' in self.configdict.get('GLOBALCONFIG').keys():
+			if self.configdict.get('GLOBALCONFIG').get('USECONDOR') in ['1', 'True', 'true']:
 				self.usecondor = True
-		else
+		else:
 			self.usecondor = False
 		return self.usecondor
 
@@ -27,31 +27,37 @@ class VAStage:
 	def write_condor_files(self):
 		
 		juniverse='vanilla'
-		jexecutable='vaStage' + self.stage
-		jrequirments=''
+		jexecutable = self.get_vegas_path() + '/bin/vaStage' + self.stage
+		jrequirements=''
 				
 		self.jobs = {}  
 		for run in self.runlist.keys():
 			jsubid = run
 			jarguments = self.get_arguments_str(run)
-			jlog = self.outputdir + '/' + 'condor_' + run + '.log'	
-			jout = self.outputdir + '/' + 'condor_' + run + '.out'
-			jerror = self.outputdir + '/' + 'condor_' + run + '.error'
-			cj = CondorJob(executable=jexectutable, universe=juniverse, requirments=jrequirments, arguments=jarguments, log=jlog, error=jerror, out=jout, subid=jsubid)
+			jlog = 'condor_' + run + '.log'	
+			jout = 'condor_' + run + '.out'
+			jerror = 'condor_' + run + '.error'
+			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir)
 			self.jobs.update({run : cj})		
 	
 	def execute(self):
-		if is_condor_enabled():
-			for run, job in self.jobs.items()
+		if self.is_condor_enabled():
+			for run, job in self.jobs.items():
 				if self.use_existing == True:
 					if self.existing_output.get(run) == True:
 						#A file for this run already exist in the output directory
+						print('{0}: Found existing file for run {1}'.format(self.stgconfigkey,run))
 						job.status = 'succeeded'
-                                                job.existstatus = '0'						
+						job.existstatus = '0'
 					else:
+						print('{0}: Submitting job for run {1} to condor.'.format(self.stgconfigkey,run))
 						job.execute()
+				else:
+					print('{0}: Submitting job for run {1} to condor.'.format(self.stgconfigkey,run))
+					job.execute()
 		else:
 			raise JobExecError('I don\'t know how to exectute properly without using condor yet...')	
+		self.status = 'started'
 	
 	#Defined for each stage individually
 	def get_arguments_str(self,run):
@@ -62,20 +68,23 @@ class VAStage:
 		n_executing=0
 		n_terminated=0
 		n_failed=0
-		for run in self.jobs.keys():
-			jstatus=self.jobs(run).get_status()
-			if jstatus == 'submitted':
-				n_submitted = nsubmitted + 1
-			elif jstatus == 'executing':
-				n_executing = n_executing + 1
-			elif jstatus == 'terminated':
-				n_terminated = n_terminated + 1
-				jexiststatus = self.jobs(run).exitstatus
-				if jexiststatus != '0'
-					n_failed = n_failed + 1
+		if self.status == 'initialized':
+			return  #stage not yet executed
+		else:
+			for run in self.jobs.keys():
+				jstatus=self.jobs[run].get_status()
+				if jstatus == 'submitted':
+					n_submitted = n_submitted + 1
+				elif jstatus == 'executing':
+					n_executing = n_executing + 1
+				elif jstatus in ['terminated', 'aborted']:
+					n_terminated = n_terminated + 1
+					jexiststatus = self.jobs[run].exitstatus
+					if jexiststatus != '0':
+						n_failed = n_failed + 1
 		#Abort processing this run group if one of the runs fails	
 		if n_failed > 0:
-			print('Error occured while running analysis for ', stgconfigkey, '. This analysis has been aborted.')
+			print('Error occured while running analysis for ', self.stgconfigkey, '. This analysis has been aborted.')
 			self.kill()
 			self.status = 'failed'
 		elif n_terminated == len(self.jobs.keys()):
@@ -99,7 +108,7 @@ class VAStage:
 	def kill(self):
 		if self.usecondor:
 			for run in self.jobs.keys():
-				self.jobs(run).kill()
+				self.jobs[run].kill()
 		else:	
 			raise JobExecError('I don\'t know how to exectute properly without using condor yet...')
 	
@@ -110,7 +119,7 @@ class VAStage:
 		for dir in self.inputdirs:
 			for file in os.listdir(dir):
 				m = file_pat.match(file)
-					if m != None :
+				if m != None :
 					#Only the copy the files if they appear in the runlist for this stage
 					if m.match(1) in self.runlist.keys():
 						oldfile = dir + '/' + m.group()
@@ -133,18 +142,19 @@ class VAStage:
 	def get_file(self, run, filetype, dirs, ddate_dir=False):
 		
 		filename=None
-		file_pat = re.compile(run + '([.]*.*[.])' + filetype
+		print(run)
+		file_pat = re.compile(run + '([.]*.*[.])' + filetype)
 		
-		for dir in dirs:
+		for fd in dirs:
 			#append the ddata directory if necessary
 			if ddate_dir == True:
-				dir = dir + '/' + self.runlist(run).ddate
+				fd = fd + '/' + self.runlist[run].ddate
 
-			files = os.listdir(dir)
+			files = os.listdir(fd)
 			for file in files:
 				m = file_pat.match(file)
 				if m != None:
-					filename = dir + '/' + file
+					filename = fd + '/' + file
 		return filename
 				
 		
@@ -154,7 +164,7 @@ class VAStage:
 	def check_for_input(self, filetype, inputdirs, ddate_dir=False):
 										
 		for run in self.runlist.keys():
-			file = self.get_file(run,filetype,ddate_dir)
+			file = self.get_file(run,filetype,inputdirs,ddate_dir)
 			if file == None:
 				err_str = 'input ' + filetype + ' file could not be found for run ' + run
 				raise InputFileError(err_str)
@@ -162,15 +172,15 @@ class VAStage:
 		return True #No errors raised
 
 	#check whether to us existing output root files. Overwrite old files by default.
-	def use_existing_output(self)
+	def use_existing_output(self):
 
 		use_existing = False
 		
 		if 'USEEXISTINGOUTPUT' in self.configdict.get(self.stgconfigkey).keys():
-			if self.configdict.get(self.stgconfigkey).get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']
+			if self.configdict.get(self.stgconfigkey).get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']:
 				use_existing = True
 		elif 'USEEXISTINGOUTPUT' in self.configdict.get('GLOBALCONFIG').keys():
-			if self.configdict.get('GLOBALCONFIG').get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']
+			if self.configdict.get('GLOBALCONFIG').get('USEEXISTINGOUTPUT').lower() in ['true', '1', 'totally']:
                                 use_existing = True
 		
 		return use_existing
@@ -179,44 +189,64 @@ class VAStage:
 	def anl_existing_output(self):
 		has_existing = {}
 		for run in self.runlist.keys():
-			file = self.get_file(run,filetype,[self.outputdir])
+			file = self.get_file(run,'root',[self.outputdir])
 			if file != None:
-				has_existing.update({run, True})
+				has_existing.update({run : True})
 			else:
-				has_existing.update({run, False})
+				has_existing.update({run : False})
 		return has_existing
+	
+	#get the path the vegas directory (the parent directory of bin, common, resultsExtractor, etc.)
+	def get_vegas_path(self):
+		vp = None
+		if 'VEGASPATH' in self.configdict[self.stgconfigkey].keys():
+			vp = self.configdict[self.stgconfigkey].get('VEGASPATH')
+		elif 'VEGASPATH' in self.configdict['GLOBALCONFIG'].keys():
+			vp = self.configdict['GLOBALCONFIG'].get('VEGASPATH')
+		else:
+			vp = os.environ['VEGAS']
+		
+		if vp == None or not os.path.isdir(vp): 
+			err_str = '{0}: could not resolve vegas path'.format(self.stgconfigkey)
+			raise Exception(err_str)
+		else:
+			if vp.endswith('/'):
+				vp = vp[:-1]
+			return vp
+			
+			
 		
 	#Cleans up files produced by this stage based on the contents of the clean_opts list.						
 	def clean_up(self, clean_opts):
 		for co in clean_opts:
 			if co.lower() == 'all':
 				subprocess.run(['rm','-r', self.outputdir])
-                        else:
+			else:
 				outfile_pat = re.compile('[0-9]+[.]*.*[.]root')
-				logfile_pat = re.compile('.*[.](log|err|out|sub)')                 
-                                if co.lower() == 'output':
+				logfile_pat = re.compile('.*[.](log|err|out|sub)')
+				if co.lower() == 'output':
 					for file in os.listdir(self.outputdir):
 						m = outfile_pat.match(file)
 						if m != None:
 							path_to_file = self.outputdir + '/' + file
 							subprocess.run(['rm', path_to_file])
 						
-                                elif co.lower() == 'output_bad':
-					for run in stg.runlist.keys()
-						if stg.jobs.get(run).existstatus != '0':
+				elif co.lower() == 'output_bad':
+					for run in stg.runlist.keys():
+						if stg.jobs[run].existstatus != '0':
 							file = get_file(run,'root',[self.outputdir])
 							subprocess.run(['rm', file])
                                                                 
-                                if co.lower() == 'logs':
-					for file in os.listdir(self.outputdir)
+				if co.lower() == 'logs':
+					for file in os.listdir(self.outputdir):
 						m = logfile_pat.match(file)
-						if m != None
+						if m != None:
 							path_to_file = self.outputdir + '/' + self.outputdir
 							subprocess.run(['rm', path_to_file])
 					
-                                elif co.lower() == 'logs_bad':
+				elif co.lower() == 'logs_bad':
 					for run in stg.runlist.key():
-						if stg.jobs(run).existstatus != '0':
+						if stg.jobs[run].existstatus != '0':
 							run_logfile_pat = re.compile('.*' + run + '[.](log|err|out|sub)')
 							for file in os.listdir(self.outputdir):
 								m = run_logfile_pat.match(file)
@@ -228,21 +258,20 @@ class VAStage:
 #Standard stage 1 analysis 
 class VAStage1(VAStage):
 
-	self.stage = '1'
+	stage = '1'
 
 	def __init__(self, **kwargs):
-      
-                self.rungroups=kwargs.get('rungroups')
+		self.rungroups=kwargs.get('rungroups')
 		self.grouptag=kwargs.get('grouptag')
-                self.configdict=kwargs.get('configdict')
-                self.inputdirs=kwargs.get('inputdirs')
+		self.configdict=kwargs.get('configdict')
+		self.inputdirs=kwargs.get('inputdirs')
 		self.outputdir=kwargs.get('outputdir')
-                
-		if grouptag != '':
+
+		if self.grouptag != '':
                 	self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
-		else
+		else:
 			self.stgconfigkey='VASTAGE' + str(self.stage)
-                 
+
 		self.use_existing = self.use_existing_output()
 				
 		#for stage 1, we need to create a combined run list with both calibration and data runs
@@ -256,87 +285,91 @@ class VAStage1(VAStage):
 		self.use_existing = self.use_existing_output()
 		
 		#Check that the input files exist
-                self.check_for_input('cvbf', self.inputdirs, True)
+		self.check_for_input('cvbf', self.inputdirs, True)
 
                 #write config file
-                cw = write.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-                self.config = cw.write('config')
+		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		self.config = cw.write('config')
 
                 #write condor files (if condor enables)
 		if self.is_condor_enabled():
 			self.write_condor_files()
+		else:
+			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
 
-                self.status='initialized'
+		self.status='initialized'
 
 	def get_arguments_str(self,run):
 		arg_str = ''
     			
-			arg_str = arg_str + "-Stage1_DBHost=" + gconfigdict.get('GLOBALCONFIG').get('DBHOSTNAME')
-			if self.runlist.get(run).runtype == 'calib':
-				arg_str = arg_str + " -Stage1_RunMode=" + "flasher"
-			else:
-				arg_str = arg_str + " -Stage1_RunMode=" + "data"
+		arg_str = arg_str + "-Stage1_DBHost=" + self.configdict.get('GLOBALCONFIG').get('DBHOSTNAME')
+		if self.runlist.get(run).runtype == 'calib':
+			arg_str = arg_str + " -Stage1_RunMode=" + "flasher"
+		else:
+			arg_str = arg_str + " -Stage1_RunMode=" + "data"
 			
-			arg_str = arg_str + " -config=" + self.configfile			
+		arg_str = arg_str + " -config=" + self.config
+
+		rawdir = self.configdict.get('GLOBALCONFIG').get('RAWDATADIR') + '/' + self.runlist[run].ddate
+		#Check for the file in the raw data directory
+		pattern=re.compile(run + '*.cvbf')
+		file_exist=False
+		for file in os.listdir(rawdir):
+			m = pattern.match(file)
+			if(m != None):
+				inputfile = m.group()
+				file_exist = True
+				break
+		if not file_exist:
+			err_str = 'Could not find a raw data file for run ' + run + ' in input directory ' + rawdir
+			raise InputFileError(err_str)
 			
-			rawdir = configdict.get('GLOBALCONFIG').get('RAWDATADIR') + '/' + self.runlist(run).ddate
-			#Check for the file in the raw data directory
-			pattern=re.compile(run + '*.cvbf')
-			file_exist=False
-			for file in os.listdir(rawdir):
-				m = pattern.match(file)
-				if(m != None):
-					inputfile = m.group()
-					file_exist = True
-					break
-			if not file_exist:
-				err_str = 'Could not find a raw data file for run ' + run + ' in input directory ' + rawdir
-				raise InputFileError(err_str)
-			
-			arg_str = arg_str + " " + rawdir + "/" + inputfile
-			arg_str = arg_str + " " + self.outputdir + "/" + run + '.stg1.root'
+		arg_str = arg_str + " " + rawdir + "/" + inputfile
+		arg_str = arg_str + " " + self.outputdir + "/" + run + '.stg1.root'
 			
 		return arg_str
 
 class VAStage2(VAStage):
 
-	self.stage='2'
+	stage='2'
 
 	def __init__(self,*args,**kwargs):
-               
+               	
 		self.rungroups=kwargs.get('rungroups')
-                self.grouptag=kwargs.get('grouptag')
-                self.configdict=kwargs.get('configdict')
-                self.inputdirs=kwargs.get('inputdirs')
-                self.outputdir=kwargs.get('outputdir')
+		self.grouptag=kwargs.get('grouptag')
+		self.configdict=kwargs.get('configdict')
+		self.inputdirs=kwargs.get('inputdirs')
+		self.outputdir=kwargs.get('outputdir')
 
-                if grouptag != '':
-                        self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
-                else
-                        self.stgconfigkey='VASTAGE' + str(self.stage)
+		if self.grouptag != '':
+			self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
+		else:
+			self.stgconfigkey='VASTAGE' + str(self.stage)
  
-                self.runlist = {}
+		self.runlist = {}
 		for k, rg in self.rungroups.items():
 			runlist.update(rg.datarundict)
 		
 		self.existing_output = self.anl_existing_output()
-                self.use_existing = self.use_existing_output()
+		self.use_existing = self.use_existing_output()
 	
 		#Check that the input files exist
 		self.check_for_input('cvbf', self.configdict.get('GLOBALCONFIG').get('RAWDATADIR'), True)
 		self.check_for_input('root', self.inputdirs)
-		
+
 		self.copy_input_to_output()
 		
                 #write config file
-                cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-                self.config = cw.write('config')
+		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		self.config = cw.write('config')
 
                 #write condor files (if condor enables)
-                if self.is_condor_enabled():
-                        self.write_condor_files()
+		if self.is_condor_enabled():
+			self.write_condor_files()
+		else:
+			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
 
-                self.status='initialized'
+		self.status='initialized'
 	
 	def get_arguments_str(self, run):
 		arg_str = ''
@@ -353,45 +386,46 @@ class VAStage2(VAStage):
 
 class VAStage4(VAStage):
 
-	self.stage='4.2'
+	stage='4.2'
 
 	def __init__(self, **kwargs):
-		
 		self.rungroups=kwargs.get('rungroups')
-                self.grouptag=kwargs.get('grouptag')
-                self.configdict=kwargs.get('configdict')
-                self.inputdirs=kwargs.get('inputdirs')
-                self.outputdir=kwargs.get('outputdir')
+		self.grouptag=kwargs.get('grouptag')
+		self.configdict=kwargs.get('configdict')
+		self.inputdirs=kwargs.get('inputdirs')
+		self.outputdir=kwargs.get('outputdir')
 
-                if grouptag != '':
-                        self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
-                else
-                        self.stgconfigkey='VASTAGE' + str(self.stage)
+		if self.grouptag != '':
+			self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
+		else:
+			self.stgconfigkey='VASTAGE' + str(self.stage)
 
 		self.use_existing = self.use_existing_output()		
-
-                self.runlist = {}
+		
+		self.runlist = {}
 		for k, rg in rungroups.items():
 			self.runlist.update(rg.datarundict)
 
                 #Check that the input files exist
-                self.check_for_input('root', self.inputdirs)
+		self.check_for_input('root', self.inputdirs)
 		
 		self.existing_output = self.anl_existing_output()
-                self.use_existing = self.use_existing_output()
+		self.use_existing = self.use_existing_output()
 
 		self.copy_input_to_output()
 
                 #write config and cut files
-                cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-                self.config = cw.write('config')
-                self.cuts = cw.write('cuts')
+		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		self.config = cw.write('config')
+		self.cuts = cw.write('cuts')
 
                 #write condor files (if condor enables)
-                if self.is_condor_enabled():
-                        self.write_condor_files()
+		if self.is_condor_enabled():
+			self.write_condor_files()
+		else:
+			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
 
-                self.status='initialized'
+		self.status='initialized'
 	
 	def get_arguments_str(self, run):
 		arg_str = ''
@@ -405,53 +439,56 @@ class VAStage4(VAStage):
 
 class VAStage5(VAStage):
 	
-	self.stage='5'
+	stage='5'
 
 	def __init__(self, **kwargs):
 
 		self.rungroups=kwargs.get('rungroups')
-                self.grouptag=kwargs.get('grouptag')
-                self.gconfigdict=kwargs.get('configdict')
-                self.inputdirs=kwargs.get('inputdirs')
-                self.outputdir=kwargs.get('outputdir')
+		self.grouptag=kwargs.get('grouptag')
+		self.gconfigdict=kwargs.get('configdict')
+		self.inputdirs=kwargs.get('inputdirs')
+		self.outputdir=kwargs.get('outputdir')
 
-                if grouptag != '':
-                        self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
-                else
-                        self.stgconfigkey='VASTAGE' + str(self.stage)
+		if self.grouptag != '':
+			self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
+		else:
+			self.stgconfigkey='VASTAGE' + str(self.stage)
 
 		self.use_existing = self.use_existing_output()
 
-                self.runlist = {}
+		self.runlist = {}
 		for k, rg in rungroups.items():
 			self.runlist.update(rg.datarundict)
 
 		self.existing_output = self.anl_existing_output()
-                self.use_existing = self.use_existing_output()		
+		self.use_existing = self.use_existing_output()		
 
                 #Check that the input files exist
-                self.check_for_input('root', self.inputdirs)
+		self.check_for_input('root', self.inputdirs)
 
                 #write config and cut files
-                cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-                self.config = cw.write('config')
-                self.cuts = cw.write('cuts')
+		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		self.config = cw.write('config')
+		self.cuts = cw.write('cuts')
                 
                 #write condor files (if condor enables)
-                if self.is_condor_enabled():
-                        self.write_condor_files()
+		if self.is_condor_enabled():
+			self.write_condor_files()
+		else:
+			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
 
-                self.status='initialized'
+		self.status='initialized'
 
 
-	def get_arguments_str(self, run)
+	def get_arguments_str(self, run):
 		arg_str = ' '
 		arg_str = arg_str + '-config=' + self.config
 		arg_str = arg_str + ' -cuts=' + self.cuts
 		
 		#time cuts
 		timecut_str = self.runlist.get(run).timecuts
-		arg_str = arg_str + ' -ES_CutTimes=' + timecut_str		
+		if not timecut_str == '':
+			arg_str = arg_str + ' -ES_CutTimes=' + timecut_str		
 
 		stg4file = get_file(run, 'root', self.inputdirs)
 		stg5file = self.outputdir + '/' + run + '.stg5.root'
@@ -463,37 +500,39 @@ class VAStage5(VAStage):
 
 class VAStage6(VAStage):
 	
-	self.stage='6'
+	stage='6'
 
 	def __init__(self, **kwargs):
 
 		self.rungroups=kwargs.get('rungroups')
-                self.grouptag=kwargs.get('grouptag')
-                self.configdict=kwargs.get('configdict')
-                self.inputdirs=kwargs.get('inputdirs')
-                self.outputdir=kwargs.get('outputdir')
+		self.grouptag=kwargs.get('grouptag')
+		self.configdict=kwargs.get('configdict')
+		self.inputdirs=kwargs.get('inputdirs')
+		self.outputdir=kwargs.get('outputdir')
 
-                if grouptag != '':
-                        self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
-                else
-                        self.stgconfigkey='VASTAGE' + str(self.stage)
+		if self.grouptag != '':
+			self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
+		else:
+			self.stgconfigkey='VASTAGE' + str(self.stage)
 
                 #Check that the input files exist
-                self.check_for_input('root', self.inputdirs)
+		self.check_for_input('root', self.inputdirs)
 
 		self.stg6_group_config()
 		self.write_stg6_runlist()
 
                 #write config and cut files
-                cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-                self.config = cw.write('config')
-                self.config = cw.write('cuts')
+		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		self.config = cw.write('config')
+		self.config = cw.write('cuts')
 
                 #write condor files (if condor enables)
-                if self.is_condor_enabled():
-                        self.write_condor_files()
+		if self.is_condor_enabled():
+			self.write_condor_files()
+		else:
+			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
 
-                self.status='initialized'
+		self.status='initialized'
 
 	def get_arguments_str(self):
 
@@ -553,19 +592,19 @@ class VAStage6(VAStage):
 	#Need only one submit file needed for stage6
 	def write_condor_files(self):
 
-                juniverse='vanilla'
-                jexecutable='vaStage' + self.stage
-                jrequirments=''
+		juniverse='vanilla'
+		jexecutable='vaStage' + self.stage
+		jrequirments=''
 
 		self.jobs = {}
 
-                jsubid = ''
-                jarguments = self.get_arguments_str()
-                jlog = self.outputdir + '/' + 'condor_' + self.stage + '.log'
-                jout = self.outputdir + '/' + 'condor_' + self.stage + '.out'
-                jerror = self.outputdir + '/' + 'condor_' + self.stage + '.error'
+		jsubid = ''
+		jarguments = self.get_arguments_str()
+		jlog = self.outputdir + '/' + 'condor_' + self.stage + '.log'
+		jout = self.outputdir + '/' + 'condor_' + self.stage + '.out'
+		jerror = self.outputdir + '/' + 'condor_' + self.stage + '.error'
 
-                cj = CondorJob(executable=jexectutable, universe=juniverse, requirments=jrequirments, arguments=jarguments, log=jlog, error=jerror, out=jout, subid=jsubid)
+		cj = CondorJob(executable=jexectutable, universe=juniverse, requirments=jrequirments, arguments=jarguments, log=jlog, error=jerror, out=jout, subid=jsubid)
 		self.jobs.update({'stg6' : cj})
 						
 		

@@ -2,43 +2,47 @@ Instruction_File_Sample
 
 GLOBALCONFIG{
 #VEGASDir=
-WORKINGDIR=
-#RawDataDir=
+WORKINGDIR=/home/vhep/ssscott/tmp
+RAWDATADIR=/veritas_data/raw
 RUNLIST:GRP1=./test.rl
 RUNLIST:GRP2=./test2.rl
 DBHOSTNAME=romulus.ucsc.edu
 DBNAME=VERITAS
 DBUSERNAME=readonly
+USECONDOR=True
 }
 
 
-Stage1{
+VASTAGE1:GRP1{
+}
+
+VASTAGE1:GRP2{
 }
 
 
 
 
-Stage2{
-}
+#Stage2{
+#}
 
-Stage4{
+#Stage4{
 	
-DistanceUpper=
-SizeLower=
-NTubesMin=
-}
+#DistanceUpper=
+#SizeLower=
+#NTubesMin=
+#}
 
-Stage5{
+#Stage5{
 	
-MeanScaledWidthLower=0.05
-MeanScaledWidthUpper=1.1
-MeanScaledLengthLower=0.05
-MeanScaledLengthUpper=1.3
-MaxHeightLower=7
-}
+#MeanScaledWidthLower=0.05
+#MeanScaledWidthUpper=1.1
+#MeanScaledLengthLower=0.05
+#MeanScaledLengthUpper=1.3
+#MaxHeightLower=7
+#}
 
-Stage6{
+#Stage6{
 
-S6A_RingSize=0.17
-RBM_SearchWindowSqCut=0.03
-}
+#S6A_RingSize=0.17
+#RBM_SearchWindowSqCut=0.03
+#}

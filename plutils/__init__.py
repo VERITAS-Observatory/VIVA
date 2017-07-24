@@ -1,1 +1,1 @@
-__all__ = ["testmod", "database", "condor", "reader", "writer", "runmanager"]
+__all__ = ["testmod", "database", "condor", "reader", "writer", "runmanager", "vastage", "analysis"]

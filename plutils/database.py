@@ -30,7 +30,7 @@ class DBConnection:
 		self.cursor.execute(query, runnum)
 		calib_run=self.cursor.fetchone().get('run_id')
 		
-		return calib_run
+		return str(calib_run)
 	
 	#return the datetime associated with a given run
 	#note that this will return an object from the standard datetime class	

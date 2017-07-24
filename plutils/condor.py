@@ -31,10 +31,11 @@ class CondorJob:
 	def write_submit_file(self):
 		self.submit_filename = self.workingdir + 'condor_' + self.subid + '.sub'
 		with open(self.submit_filename,'w') as sf:
-			sf.write("Universe    = " + self.universe + '\n')
-			sf.write("Executable  = " + self.executable + '\n')
-			sf.write("Arguments  = " + self.arguments + '\n')
+			sf.write("Universe     = " + self.universe + '\n')
+			sf.write("Executable   = " + self.executable + '\n')
+			sf.write("Arguments    = " + self.arguments + '\n')
 			sf.write("Requirements = " + self.requirements + '\n')
+			sf.write("GetEnv       = True" + '\n')
 			sf.write('\n')
 			sf.write("Output = " + self.workingdir + self.output + '\n')
 			sf.write("Error  = " + self.workingdir + self.error + '\n')
@@ -86,6 +87,9 @@ class CondorJob:
  		
 		self.get_job_id()
 		self.status='submitted'
+
+	def execute(self):
+		self.submit()
 	
 	#checks the status of the job using the logfile
 	def update_status(self):
@@ -93,8 +97,11 @@ class CondorJob:
 		with open(log_filename) as lf:
 			for line in lf.readlines():
 				line = line.lower()
-				if line.find('job terminated') != -1 and (self.status == 'submitted' or self.status == 'executing'):
+				if line.find('job terminated') != -1 and self.status in ['submitted', 'executing']:
 					self.status='terminated'
+				elif line.find('aborted') != -1 and self.status in ['submitted', 'executing']:
+					self.status='aborted'
+					self.exitstatus = 1
 				elif line.find('job executing') != -1 and self.status == 'submitted':
 					self.status='executing'
 				
