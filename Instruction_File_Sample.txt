@@ -14,23 +14,32 @@ USECONDOR=True
 
 
 VASTAGE1:GRP1{
+#USEEXISTINGOUTPUT=True
 }
 
 VASTAGE1:GRP2{
+#USEEXISTINGOUTPUT=True
 }
 
 
 
 
-#Stage2{
-#}
+VASTAGE2:GRP1{
+#USEEXISTINGOUTPUT=True
+}
 
-#Stage4{
-	
-#DistanceUpper=
-#SizeLower=
-#NTubesMin=
-#}
+VASTAGE2:GRP2{
+#USEEXISTINGOUTPUT=True
+}
+
+
+VASTAGE4:GRP1:GRP2{
+LTM_LookupTableFile="/veritas_data/lookup_tables/v250/lt_Oct2012_ua_ATM21_7samples_vegasv250rc5_allOffsets_LZA_noise150fix.root"
+DistanceUpper=0/1.43
+SizeLower=0/400
+NTubesMin=0/5
+
+}
 
 #Stage5{
 	

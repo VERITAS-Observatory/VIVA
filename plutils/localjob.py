@@ -10,20 +10,23 @@ class LocalJobQueue():
 		self.update_T = 0.1
 
 		self.joblist=kwargs.get('joblist')
-		self.proc_limit=kwargs.get('proc_limit')
+		self.proc_limit=int(kwargs.get('proc_limit'))
 
-		self.jobdict = enumerate(self.joblist)
+		self.jobdict = dict(enumerate(self.joblist))
 		self.job_status = {}
-		self.total_procs = len(joblist)
+		self.total_procs = len(self.joblist)
 		self.active_procs = 0
 		self.exitstatus = None		
 
 		self.status='initialized'
 		
 	def execute(self):
+		print('Executing local job queue...')
+		print('Active process limit = ', self.proc_limit)
 		while(self.get_status() != 'terminated'):
 			for k,j in self.jobdict.items():
 				if j.get_status() == 'initialized' and self.active_procs < self.proc_limit:
+					print(j)
 					j.execute()
 					self.active_procs = self.active_procs + 1
 
@@ -38,10 +41,10 @@ class LocalJobQueue():
 
 		for k,j in self.jobdict.items():
 
-		
-			if j.get_status == 'executing':
+			jstatus = j.get_status()	
+			if jstatus == 'executing':
 				n_executing = n_executing + 1
-			elif j.get_status == 'terminated':
+			elif jstatus == 'terminated':
 				if j.exitstatus == '0':
 					n_succeeded = n_succeeded + 1
 				else:
@@ -78,28 +81,34 @@ class LocalJob():
 			self.out = kwargs.get('out')
 
 		self.error = None
-		if 'error' in kwargs.keys()
+		if 'error' in kwargs.keys():
 			self.error = kwargs.get('error')
 	
 		self.proc = None
 		self.exitstatus = None
 			
 		self.status = 'initialized'
+	
+	def __str__(self):
+		return self.executable + ' ' + str(self.args)
 
 	def execute(self):
-		self.proc = subprocess.Popen([self.executable, self.args], stdout=subprocess.PIPE, stderr = subprocess.PIPE)
+		self.proc = subprocess.Popen([self.executable]+self.args, stdout=subprocess.PIPE, stderr = subprocess.STDOUT)
+		print(self.proc.args, ' : ' ,self.read_stdout())
 		self.status = 'submitted'
 
 	def update_status(self):
-		if self.proc.poll() == None and self.status == 'submitted':
+		if self.status == 'initialized':
+			pass
+		elif self.proc.poll() == None and self.status == 'submitted':
 			self.status = 'executing'
 		elif self.proc.poll() == 0:
 			self.status = 'terminated'
 			self.exitstatus = '0'
-		elif self.proc.poll() == 1:
+		elif self.proc.poll() != 0:
 			self.status = 'terminated'
 			self.exitstatus = '1'
-
+	
 	def get_status(self):
 		self.update_status()
 		return self.status
@@ -115,9 +124,9 @@ class LocalJob():
 	def read_stdout(self):
 		return self.proc.stdout.read().decode('utf-8')
 	
-	def get_stderr(self)
+	def get_stderr(self):
 		return self.proc.stderr.peek().decode('utf-8')
 
 	#Read from the buffer for stdout. Note that this operation clears the buffer.
-        def read_stderr(self):
-                return self.proc.stderr.read().decode('utf-8')		
+	def read_stderr(self):
+		return self.proc.stderr.read().decode('utf-8')		

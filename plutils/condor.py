@@ -70,20 +70,27 @@ class CondorJob:
 		if os.path.isfile(log_filename):
 			os.remove(log_filename)		
 
-		sp=subprocess.run(['condor_submit', self.submit_filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-		sub_out=sp.stdout.decode('utf-8').splitlines()
+		sp=subprocess.Popen(['condor_submit', self.submit_filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		sub_out=sp.stdout.read().decode('utf-8')
+		
 		
 		#Make sure the job actually submitted...
-		errors = []
-		for line in sub_out:
-			err_idx = line.lower().find('error')
-			if err_idx != -1:
-				errors.append(line)
-		if len(errors) != 0:
-			err_str=""
-			for e in errors:
-				err_str = err_str + e + '\n'
-			raise CondorSubmissionError(err_str)
+		while(sp.poll() == None):
+			time.sleep(0.05)
+		if sp.poll() != 0:
+			err_str = 'Condor submission failed:\n {0}'.format(sub_out)
+			raise CondorSubmissionError(err_str) 
+				
+		#errors = []
+		#for line in sub_out:
+		#	err_idx = line.lower().find('error')
+		#	if err_idx != -1:
+		#		errors.append(line)
+		#if len(errors) != 0:
+		#	err_str=""
+		#	for e in errors:
+		#		err_str = err_str + e + '\n'
+		#	raise CondorSubmissionError(err_str)
  		
 		self.get_job_id()
 		self.status='submitted'

@@ -134,6 +134,7 @@ class AnalysisCore():
 	#Analyze the requirments for each stage
 	#For now, indictating an input directory is understood as meaning the data from the previous stage already exist in that directory. 
 	def anl_reqs(self):
+		print('Analyzing requirments...')
 		for k1 in self.configdict.keys():
 			reqs = []
 			if k1.lower().startswith('vastage'):
@@ -145,16 +146,25 @@ class AnalysisCore():
 					reqs.append('')
 				else:
 					#Otherwise, each stage depends on the status of the previous stage.
-					prev_stg = str( int(stg_num) - 1)
+					prev_stg = self.get_prev_stgnum(stg_num)
 					group_strs = k1.split(':')[1:]
+					print('    {0} grp_strs = {1}'.format(k1,group_strs))
 					for k2 in self.configdict.keys():
 						if k2.lower().startswith('vastage'+prev_stg):
 							for gs in group_strs:
-								if gs in k2.split(':')[1:]:
+								print('gs = ', gs, ' k2.split(\':\')[1:]=',k2.split(':')[1:])
+								if gs in k2.split(':')[1:] and k2 not in reqs:
 									reqs.append(k2)
-
+				print('    {0} : {1}'.format(k1,reqs))
 				self.stg_reqs.update({k1 : reqs})
 	
+	def get_prev_stgnum(self,stg_num):
+		if str(stg_num) in ['4','4.2']:
+			return '2'
+		else:
+			return str(int(stg_num)-1)
+		
+
 	#For a given stage key, return the requirement for that stage and the status of that requirment
 	def check_reqs(self, stgkey):
 		req_stgs = self.stg_reqs[stgkey]
@@ -164,26 +174,42 @@ class AnalysisCore():
 		elif len(req_stgs) == 1 and req_stgs[0] == '': #No reqs case 2
 			status = 'succeeded'
 		else:
+			n_initialized = 0
+			n_submitted = 0
 			n_executing = 0
 			n_succeeded = 0
 			n_failed = 0
 
 			for stg in req_stgs:
-				req_status = self.stg_objs.get(stg).get_status
-				if re_status == 'executing':
+				req_status = self.stg_objs.get(stg).get_status()
+				if req_status == 'initialized':
+					n_initialized = n_initialized + 1
+				elif req_status == 'submitted':
+					n_submitted = n_submitted + 1
+				elif req_status == 'executing':
 					n_executing = n_executing + 1
 				elif req_status == 'succeeded':
 					n_succeeded = n_succeeded + 1
 				elif req_status == 'failed':
 					n_failed = n_failed + 1
 			
-			if n_executing > 0 and n_failed == 0:
+			print('reqs for ', stgkey, ' : ' , [n_initialized, n_submitted,n_executing,n_succeeded,n_failed])
+			
+			if n_initialized == len(req_stgs):
+				status='initialized'
+			elif n_submitted > 0 and n_executing==0:
+				status = 'submitted'
+			elif n_executing > 0 and n_failed == 0:
 				status = 'executing'
-			elif n_succeeded == len(req_stgs):
-				status == 'succeeded'
-			elif n_succeeded + n_failed == len(req_stgs):
+			elif n_failed > 0:
 				status = 'failed'
+			elif n_succeeded == len(req_stgs):
+				status = 'succeeded'
 		
+		if status == None:
+			err_str = '{0}: Could not resolve status of requirements.'.format(stgkey)
+			raise Exception(err_str)
+
 		return [req_stgs, status]
 
 	def update_status(self):
@@ -232,6 +258,7 @@ class AnalysisCore():
 		while self.is_working():
 				
 			for key, stg in self.stg_objs.items():
+				print('{0} : Status = {1}; Req check = {2}'.format(key,stg.status,self.check_reqs(key)[1]))
 				if self.check_reqs(key)[1] == 'succeeded' and stg.status == 'initialized':
 					print('Starting analysis for stage {0}.'.format(key))
 					stg.execute()
