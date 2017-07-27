@@ -94,7 +94,7 @@ class LocalJob():
 
 	def execute(self):
 		self.proc = subprocess.Popen([self.executable]+self.args, stdout=subprocess.PIPE, stderr = subprocess.STDOUT)
-		print(self.proc.args, ' : ' ,self.read_stdout())
+		print(self.proc.args, ' : ' ,self.get_stdout())
 		self.status = 'submitted'
 
 	def update_status(self):

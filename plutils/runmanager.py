@@ -71,6 +71,7 @@ class RunGroup:
 		with open(self.rlfile) as rl:
 			content = rl.readlines()
 			for s in content:
+				s = s.strip('\n')
 				sl = s.split(maxsplit=1)
 				len_sl = len(sl) 
 				if len_sl >= 2:

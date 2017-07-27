@@ -25,7 +25,7 @@ class VAStage:
 
 	#Loop over the rungroup and write the condor submission files
 	def write_condor_files(self):
-		
+		print('{0} : Writing condor files in {1}.'.format(self.stgconfigkey,self.outputdir))	
 		juniverse='vanilla'
 		jexecutable = self.get_vegas_path() + '/bin/vaStage' + self.stage
 		jrequirements=''
@@ -50,6 +50,12 @@ class VAStage:
 			self.check_for_input('cvbf', [self.configdict.get('GLOBALCONFIG').get('RAWDATADIR')], True)
 		if self.needs_root:		
 			self.check_for_input('root', self.inputdirs)
+                
+		#write condor files (if condor enables)
+		if self.is_condor_enabled():
+			self.write_condor_files()
+		else:
+			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
 
 		if self.is_condor_enabled():
 			for run, job in self.jobs.items():
@@ -89,8 +95,13 @@ class VAStage:
 					n_executing = n_executing + 1
 				elif jstatus in ['terminated', 'aborted']:
 					n_terminated = n_terminated + 1
-					jexiststatus = self.jobs[run].exitstatus
-					if jexiststatus != '0':
+					jexitstatus = self.jobs[run].exitstatus
+					if jexitstatus == None:
+						#Give the logfile a chance to update
+						time.sleep(0.5)
+						jstatus=self.jobs[run].get_status()
+						jexitstatus = self.jobs[run].exitstatus
+					if jexitstatus != '0':
 						n_failed = n_failed + 1
 		print([self.stgconfigkey,n_submitted, n_executing,n_terminated,n_failed])
 		#Abort processing this run group if one of the runs fails	
@@ -125,6 +136,7 @@ class VAStage:
 	
 	#copies root files from the input directory to the outputdirectory. This is needed as some stages modify an existing file rather than creating a new one
 	def copy_input_to_output(self):
+		print('{0} : Copying output root file from previous stage... Directories: {1}'.format(self.stgconfigkey,self.inputdirs))
 		copyprocs = []
 		file_pat = re.compile('([0-9]+)([.]*.*[.])root')
 		for dir in self.inputdirs:
@@ -133,10 +145,14 @@ class VAStage:
 				if m != None :
 					#Only the copy the files if they appear in the runlist for this stage
 					if m.group(1) in self.runlist.keys():
-						oldfile = dir + '/' + m.group()
-						newfile = self.outputdir + '/' + m.group(1) + '.stg' + self.stage + '.root'
-						proc = subprocess.Popen(['cp', oldfile, newfile])
-						copyprocs.append(proc)
+						#Only copy if we intend to overwrite the existing output for this run
+						if self.use_existing and self.existing_output[m.group(1)]:
+							pass
+						else:
+							oldfile = dir + '/' + m.group()
+							newfile = self.outputdir + '/' + m.group(1) + '.stg' + self.stage + '.root'
+							proc = subprocess.Popen(['cp', oldfile, newfile])
+							copyprocs.append(proc)
 		#Ensure we wait for all the copying jobs to finish
 		is_copying=True
 		while(is_copying):
@@ -210,6 +226,7 @@ class VAStage:
 	
 	#get the path the vegas directory (the parent directory of bin, common, resultsExtractor, etc.)
 	def get_vegas_path(self):
+		print('{0} : Looking for the appropriate version of VEGAS to use...'.format(self.stgconfigkey))
 		vp = None
 		if 'VEGASPATH' in self.configdict[self.stgconfigkey].keys():
 			vp = self.configdict[self.stgconfigkey].get('VEGASPATH')
@@ -230,6 +247,7 @@ class VAStage:
 		else:
 			if vp.endswith('/'):
 				vp = vp[:-1]
+				print('{0} : OK, I\'ll use the version of VEGAS found in {1}.'.format(self.stgconfigkey,vp))
 			return vp
 			
 			
@@ -307,12 +325,6 @@ class VAStage1(VAStage):
 		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 
-                #write condor files (if condor enables)
-		if self.is_condor_enabled():
-			self.write_condor_files()
-		else:
-			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
-
 		self.status='initialized'
 
 	def get_arguments_str(self,run):
@@ -377,12 +389,6 @@ class VAStage2(VAStage):
 		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 
-                #write condor files (if condor enables)
-		if self.is_condor_enabled():
-			self.write_condor_files()
-		else:
-			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
-
 		self.status='initialized'
 	
 	def get_arguments_str(self, run):
@@ -426,18 +432,10 @@ class VAStage4(VAStage):
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
 
-		self.copy_input_to_output()
-
                 #write config and cut files
 		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 		self.cuts = cw.write('cuts')
-		
-                #write condor files (if condor enables)
-		if self.is_condor_enabled():
-			self.write_condor_files()
-		else:
-			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
 		
 		if 'LTM_LookupTableFile' not in self.configdict[self.stgconfigkey].keys():
 			print('{0} : No lookup table specified. If this is a standard analysis, your jobs will likely fail.'.format(self.stgconfigkey)) 
@@ -466,7 +464,7 @@ class VAStage5(VAStage):
 
 		self.rungroups=kwargs.get('rungroups')
 		self.grouptag=kwargs.get('grouptag')
-		self.gconfigdict=kwargs.get('configdict')
+		self.configdict=kwargs.get('configdict')
 		self.inputdirs=kwargs.get('inputdirs')
 		self.outputdir=kwargs.get('outputdir')
 
@@ -488,12 +486,6 @@ class VAStage5(VAStage):
 		self.config = cw.write('config')
 		self.cuts = cw.write('cuts')
                 
-                #write condor files (if condor enables)
-		if self.is_condor_enabled():
-			self.write_condor_files()
-		else:
-			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
-
 		self.status='initialized'
 
 
@@ -542,12 +534,6 @@ class VAStage6(VAStage):
 		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 		self.config = cw.write('cuts')
-
-                #write condor files (if condor enables)
-		if self.is_condor_enabled():
-			self.write_condor_files()
-		else:
-			raise Exception("Cannot yet process jobs locally, add USECONDOR=True to the global configuration.")
 
 		self.status='initialized'
 
