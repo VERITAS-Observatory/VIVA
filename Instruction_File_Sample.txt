@@ -44,26 +44,35 @@ NTubesMin=0/5
 }
 
 VASTAGE5:GRP1{
-	
+
+USEEXISTINGOUTPUT=False	
 MeanScaledWidthLower=0.05
 MeanScaledWidthUpper=1.1
 MeanScaledLengthLower=0.05
 MeanScaledLengthUpper=1.3
 MaxHeightLower=7
+Method="VAStereoEventSelection"
 
 }
 
 VASTAGE5:GRP2{
 
+USEEXISTINGOUTPUT=False
 MeanScaledWidthLower=0.05
 MeanScaledWidthUpper=1.1
 MeanScaledLengthLower=0.05
 MeanScaledLengthUpper=1.4
+Method="VAStereoEventSelection"
 
 }
 
-#Stage6{
+VASTAGE6:GRP1:GRP2{
 
-#S6A_RingSize=0.17
-#RBM_SearchWindowSqCut=0.03
-#}
+S6A_RingSize=0.17
+RBM_SearchWindowSqCut=0.03
+S6A_ExcludeSource=1
+S6A_SourceExclusionRadius=0.4
+S6A_TestPositionRA=83.6333
+S6A_TestPositionDEC=22.0145
+
+}

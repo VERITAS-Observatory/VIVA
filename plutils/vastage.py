@@ -235,10 +235,10 @@ class VAStage:
 		else:
 			try: 
 				vp = os.environ['VEGAS']
-			except KEYERROR:
+			except KeyError:
 				try:
 					vp = os.environ['VERITASBASE'] + '/vegas'
-				except KEYERROR:
+				except KeyError:
 					vp = None
 		
 		if vp == None or not os.path.isdir(vp): 
@@ -423,8 +423,6 @@ class VAStage4(VAStage):
 		else:
 			self.stgconfigkey='VASTAGE' + str(self.stage[0])
 
-		self.use_existing = self.use_existing_output()		
-		
 		self.runlist = {}
 		for k, rg in self.rungroups.items():
 			self.runlist.update(rg.datarundict)
@@ -473,19 +471,23 @@ class VAStage5(VAStage):
 		else:
 			self.stgconfigkey='VASTAGE' + str(self.stage)
 
-		self.use_existing = self.use_existing_output()
-
 		self.runlist = {}
 		for k, rg in self.rungroups.items():
 			self.runlist.update(rg.datarundict)
-
+			
 		self.existing_output = self.anl_existing_output()
-		self.use_existing = self.use_existing_output()		
+		self.use_existing = self.use_existing_output()
 		
 		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 		self.cuts = cw.write('cuts')
-                
+        	
+		if not 'Method' in self.configdict[self.stgconfigkey].keys():
+			info_str = '{0} : Warning, no event selection method was specified with Method=<method_type>.\n'.format(self.stgconfigkey)
+			info_str = info_str + 'Note: vaStage5 will default to VANullEventSelection, which is unlikely to be desireable.\n'
+			info_str = info_str + 'Consider adding Method=\"VAStereoEventSelection\" or Method=\"VACombinedEventSelection\" to the instructions file.'
+			print(info_str)
+        
 		self.status='initialized'
 
 
@@ -526,6 +528,14 @@ class VAStage6(VAStage):
 			self.stgconfigkey='VASTAGE' + str(self.stage) + ':' + self.grouptag
 		else:
 			self.stgconfigkey='VASTAGE' + str(self.stage)
+		
+		#For stage 6, this is only used internally, as separate runlist file is written.
+		self.runlist = {}
+		for k, rg in self.rungroups.items():
+			self.runlist.update(rg.datarundict)
+
+		self.existing_output = self.anl_existing_output()
+		self.use_existing = self.use_existing_output()
 
 		self.stg6_group_config()
 		self.write_stg6_runlist()
@@ -533,14 +543,15 @@ class VAStage6(VAStage):
                 #write config and cut files
 		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
-		self.config = cw.write('cuts')
+		self.cuts = cw.write('cuts')
 
 		self.status='initialized'
 
 	def get_arguments_str(self):
 
 		arg_str = ''
-		arg_str = arg_str + '-S6A_OutputFileName=' + self.outputdir + '/' + 'results_stg6'
+		arg_str = arg_str + '-S6A_Batch=1'
+		arg_str = arg_str + ' -S6A_OutputFileName=' + self.stgconfigkey.lower().replace(':','-') + '_'
 		arg_str = arg_str + ' -S6A_ConfigDir=' + self.outputdir
 		arg_str = arg_str + ' -S6A_Batch=1'
 		arg_str = arg_str + ' -cuts=' + self.cuts 
@@ -555,27 +566,33 @@ class VAStage6(VAStage):
 
 		self.stg6_rlfilename = self.outputdir + '/' + 'runlist_stg6.txt'
 		
-		with open(self.stg6_rlfilename) as rl:
+		with open(self.stg6_rlfilename, 'w') as rl:
 			for gidx, group in enumerate(self.rungroups.keys()):
 
 				if gidx != 0:
-					rl.write('[RUNLIST ID: ' + gidx + ']\n')
+					rl.write('[RUNLIST ID: ' + str(gidx) + ']\n')
 
 				for ridx, run in enumerate(self.rungroups.get(group).datarundict):
 					stg5file = self.get_file(run, 'root', self.inputdirs)
-					rl.write(self.inputdir + '/' + stg5file + '\n')
+					rl.write(stg5file + '\n')
 
 				if gidx !=0:
-					rl.write('/RUNLIST ID: ' + gidx + ']\n')
+					rl.write('[/RUNLIST ID: ' + str(gidx) + ']\n')
 				
-				rl.write('[EA ID: ' + gidx + ']\n')
-				rl.write(self.ea_dict.get(group) + '\n')
-				rl.write('[/EA ID: ' + gidx + ']\n')
+				rl.write('[EA ID: ' + str(gidx) + ']\n')
+				try:
+					rl.write(self.ea_dict[group] + '\n')
+				except KeyError:
+					pass
+				rl.write('[/EA ID: ' + str(gidx) + ']\n')
 				
-				rl.write('[CONFIG ID: ' + gidx + ']\n')
-				for opt in self.group_config.get(group):
-					rl.write(opt + '\n')
-				rl.write('[/CONFIG ID: ' + gidx + ']\n')			
+				rl.write('[CONFIG ID: ' + str(gidx) + ']\n')
+				try:
+					for opt in self.group_config[group]:
+						rl.write(opt + '\n')
+				except KeyError:
+					pass
+				rl.write('[/CONFIG ID: ' + str(gidx) + ']\n')
 
 	#determine the the configuration and effective area to be used for each rungroup in stage 6
 	def stg6_group_config(self):
@@ -596,23 +613,33 @@ class VAStage6(VAStage):
 	def write_condor_files(self):
 
 		juniverse='vanilla'
-		jexecutable='vaStage' + self.stage
-		jrequirments=''
+		jexecutable = self.get_vegas_path() + '/bin/vaStage' + self.stage
+		jrequirements=''
 
 		self.jobs = {}
 
-		jsubid = ''
+		jsubid = 'stg6'
 		jarguments = self.get_arguments_str()
-		jlog = self.outputdir + '/' + 'condor_' + self.stage + '.log'
-		jout = self.outputdir + '/' + 'condor_' + self.stage + '.out'
-		jerror = self.outputdir + '/' + 'condor_' + self.stage + '.error'
+		jlog = 'condor_' + jsubid + '.log'
+		jout = 'condor_' + jsubid + '.out'
+		jerror = 'condor_' + jsubid + '.error'
 
-		cj = CondorJob(executable=jexectutable, universe=juniverse, requirments=jrequirments, arguments=jarguments, log=jlog, error=jerror, out=jout, subid=jsubid)
+		cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir)
 		self.jobs.update({'stg6' : cj})
 						
+	def anl_existing_output(self):
+
+		has_existing = {}
+		file = self.get_file('','root',[self.outputdir])
+		if file != None:
+			has_existing.update({'stg6' : True})
+		else:
+			has_existing.update({'stg6' : False})
+
+		return has_existing
 		
 class InputFileError(Exception):
 	pass
 				
 class JobExecError(Exception):
-	pass			
+	pass	
