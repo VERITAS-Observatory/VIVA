@@ -1,78 +1,124 @@
-Instruction_File_Sample
+#Instruction File Sample
+#
+#Note that many of the pipeline related configuration options can specified on
+#stage-by-stage basis as well. The local (stage) option will have precedence
+#over the global options. Not including an option in an instructions block
+#implicitly result in the default operation for option to be performed. This
+#applies for the VEGAS cuts and configuration options as well. Be careful, as
+#the default operations/values may differ from what is desirable.
+#
+#Analysis/Configuration Keys and pipeline-specific options are case sensitive at the moment. 
+#Configuration/Cuts options must be specfied using convention expected by VEGAS  
+#Leading and trailing whitespace will stripped before parsing, and identation is not
+#required.
 
+#These are the global configuration options for the script
 GLOBALCONFIG{
-#VEGASDir=
-WORKINGDIR=/home/vhep/ssscott/tmp
-RAWDATADIR=/veritas_data/raw
-RUNLIST:GRP1=./test.rl
-RUNLIST:GRP2=./test2.rl
-DBHOSTNAME=romulus.ucsc.edu
-DBNAME=VERITAS
-DBUSERNAME=readonly
-USECONDOR=True
-}
 
+	#VEGASPATH= #Explicitly indicates the version of vegas to use. optional.
+	WORKINGDIR=/home/vhep/ssscott/tmp #Top level directory for this analysis
+	RAWDATADIR=/veritas_data/raw
 
+	#Runlist group tag associations. The tag is arbitrary alphanumeric specifier of your
+	#choice. Omitting the group specifier for a single runlist analysis should be
+	#work, but has not yet been tested.
+	RUNLIST:GRP1=./test.rl
+	RUNLIST:GRP2=./test2.rl
+
+	#The following DB Options are also accessible by stage 2
+	DBHOSTNAME=romulus.ucsc.edu
+	DBNAME=VERITAS
+	DBUSERNAME=readonly
+
+	USECONDOR=True #Must use condor for now
+}:
+
+#Below are instructions blocks for the VEGAS analysis. Note that the pipeline
+#should insensitive the ordering of the blocks. It should work out the correct
+#execution order on its own. The VEGAS stage instructions can include any
+#option found in the cuts and configuration files. Together, these should be the same as
+#the options that can specified on the command line. 
+
+#Parallel Stage1 analyses
 VASTAGE1:GRP1{
-USEEXISTINGOUTPUT=True
+	#You can use existing data in the output directory!
+	USEEXISTINGOUTPUT=True
 }
 
 VASTAGE1:GRP2{
-USEEXISTINGOUTPUT=True
+	USEEXISTINGOUTPUT=True
 }
 
 
-
-
+#Parallel Stage2 analyses
+#Each analysis needs to wait only on the stages it depends upon
 VASTAGE2:GRP1{
-USEEXISTINGOUTPUT=True
+	USEEXISTINGOUTPUT=True
 }
 
 VASTAGE2:GRP2{
-USEEXISTINGOUTPUT=True
+	USEEXISTINGOUTPUT=True
 }
 
-
+#Combined Stage 4 analysis. This will need to wait for both the above stage2
+#analyses to complete. In practice, this is the opposite of what you might
+#normally do (combined analysis for stages 1 & 2, separate analyses for later
+#stages)
 VASTAGE4:GRP1:GRP2{
 
-USEEXISTINGOUTPUT=True
-LTM_LookupTableFile="/veritas_data/lookup_tables/v250/lt_Oct2012_ua_ATM21_7samples_vegasv250rc5_allOffsets_LZA_noise150fix.root"
-DistanceUpper=0/1.43
-SizeLower=0/400
-NTubesMin=0/5
+	USEEXISTINGOUTPUT=True
+
+	LTM_LookupTableFile="/veritas_data/lookup_tables/v250/lt_Oct2012_ua_ATM21_7samples_vegasv250rc5_allOffsets_LZA_noise150fix.root"
+	DistanceUpper=0/1.43
+	SizeLower=0/400
+	NTubesMin=0/5
 
 }
 
 VASTAGE5:GRP1{
 
-USEEXISTINGOUTPUT=False	
-MeanScaledWidthLower=0.05
-MeanScaledWidthUpper=1.1
-MeanScaledLengthLower=0.05
-MeanScaledLengthUpper=1.3
-MaxHeightLower=7
-Method="VAStereoEventSelection"
+	USEEXISTINGOUTPUT=True
+	
+	MeanScaledWidthLower=0.05
+	MeanScaledWidthUpper=1.1
+	MeanScaledLengthLower=0.05
+	MeanScaledLengthUpper=1.3
+	MaxHeightLower=7
+	Method="VAStereoEventSelection"
 
 }
 
 VASTAGE5:GRP2{
 
-USEEXISTINGOUTPUT=False
-MeanScaledWidthLower=0.05
-MeanScaledWidthUpper=1.1
-MeanScaledLengthLower=0.05
-MeanScaledLengthUpper=1.4
-Method="VAStereoEventSelection"
+	USEEXISTINGOUTPUT=True
+	MeanScaledWidthLower=0.05
+	MeanScaledWidthUpper=1.1
+	MeanScaledLengthLower=0.05
+	MeanScaledLengthUpper=1.4
+	Method="VAStereoEventSelection"
 
 }
 
+#For stage 6, the formatted specially formatted runlist will written
+#automatically. 
 VASTAGE6:GRP1:GRP2{
 
-S6A_RingSize=0.17
-RBM_SearchWindowSqCut=0.03
-S6A_ExcludeSource=1
-S6A_SourceExclusionRadius=0.4
-S6A_TestPositionRA=83.6333
-S6A_TestPositionDEC=22.0145
+	#These should set the defaults within the stage 6 configuration and be applied
+	#to each run group in the case where a group-level configuration is not
+	#specified
+	S6A_RingSize=0.17
+	RBM_SearchWindowSqCut=0.03
+	S6A_ExcludeSource=1
+	S6A_SourceExclusionRadius=0.4
+	S6A_TestPositionRA=83.6333
+	S6A_TestPositionDEC=22.0145
+
+	#Note that is should also be possible to specify config options on group by
+	#group basis in the following way:
+	#S6A_RingSize:GRP1=0.17
+	#RBM_SearchWindowSqCut:GRP1=0.03
+	#S6A_RingSize:GRP2=0.17
+	#RBM_SearchWindowSqCut:GRP2=0.03
+	#This still requires testing.
 
 }

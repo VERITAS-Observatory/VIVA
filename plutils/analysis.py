@@ -147,13 +147,13 @@ class AnalysisCore():
 				else:
 					#Otherwise, each stage depends on the status of the previous stage.
 					prev_stg = self.get_prev_stgnum(stg_num)
-					group_strs = k1.split(':')[1:]
+					group_strs = k1.partition(':')[2].split(':')
 					print('    {0} grp_strs = {1}'.format(k1,group_strs))
 					for k2 in self.configdict.keys():
 						if k2.lower().startswith('vastage'+prev_stg):
 							for gs in group_strs:
-								print('gs = ', gs, ' k2.split(\':\')[1:]=',k2.split(':')[1:])
-								if gs in k2.split(':')[1:] and k2 not in reqs:
+								print('gs = ', gs, ' k2.partition(\':\').split(\':\')=',k2.partition(':')[2].split(':'))
+								if gs in k2.partition(':')[2].split(':') and k2 not in reqs:
 									reqs.append(k2)
 				print('    {0} : {1}'.format(k1,reqs))
 				self.stg_reqs.update({k1 : reqs})
