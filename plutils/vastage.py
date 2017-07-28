@@ -4,7 +4,7 @@ import subprocess
 import os
 import re
 import time
-from . import writer
+from . import configwriter
 from . import runmanager
 from . import condor
 
@@ -103,7 +103,7 @@ class VAStage:
 						jexitstatus = self.jobs[run].exitstatus
 					if jexitstatus != '0':
 						n_failed = n_failed + 1
-		print([self.stgconfigkey,n_submitted, n_executing,n_terminated,n_failed])
+		#print([self.stgconfigkey,n_submitted, n_executing,n_terminated,n_failed])
 		#Abort processing this run group if one of the runs fails	
 		if n_failed > 0:
 			print('Error occured while running analysis for ', self.stgconfigkey, '. This analysis has been aborted.')
@@ -136,7 +136,7 @@ class VAStage:
 	
 	#copies root files from the input directory to the outputdirectory. This is needed as some stages modify an existing file rather than creating a new one
 	def copy_input_to_output(self):
-		print('{0} : Copying output root file from previous stage... Directories: {1}'.format(self.stgconfigkey,self.inputdirs))
+		print('{0} : Copying output root file from previous stage...\n Directories: {1}'.format(self.stgconfigkey,self.inputdirs))
 		copyprocs = []
 		file_pat = re.compile('([0-9]+)([.]*.*[.])root')
 		for dir in self.inputdirs:
@@ -322,7 +322,7 @@ class VAStage1(VAStage):
 		self.use_existing = self.use_existing_output()
 		
                 #write config file
-		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 
 		self.status='initialized'
@@ -386,7 +386,7 @@ class VAStage2(VAStage):
 		self.use_existing = self.use_existing_output()
 		
                 #write config file
-		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 
 		self.status='initialized'
@@ -431,7 +431,7 @@ class VAStage4(VAStage):
 		self.use_existing = self.use_existing_output()
 
                 #write config and cut files
-		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 		self.cuts = cw.write('cuts')
 		
@@ -478,7 +478,7 @@ class VAStage5(VAStage):
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
 		
-		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 		self.cuts = cw.write('cuts')
         	
@@ -541,7 +541,7 @@ class VAStage6(VAStage):
 		self.write_stg6_runlist()
 
                 #write config and cut files
-		cw = writer.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
 		self.config = cw.write('config')
 		self.cuts = cw.write('cuts')
 

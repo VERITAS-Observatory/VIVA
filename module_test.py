@@ -68,15 +68,15 @@ print('    exit status = ', cs.exitstatus)
 '''
 
 print('-'*25)
-print('Testing instructions file reader')
-read_inst = reader.InstFileReader(inst_filename)
+print('Testing instructions file instreader')
+read_inst = instreader.InstFileReader(inst_filename)
 configdict = read_inst.get_config_dict()
 print ('configdict: ', configdict)
 
 """
 print('-'*25)
-print('Testing config file writer')
-cw = writer.ConfigWriter(configdict,'VASTAGE1:GRP1',1, '/home/vhep/ssscott/tmp') 
+print('Testing config file configwriter')
+cw = configwriter.ConfigWriter(configdict,'VASTAGE1:GRP1',1, '/home/vhep/ssscott/tmp') 
 cw.write('config')
 cw.write('cuts')
 print('    Config file: ', cw.configfilepath)
