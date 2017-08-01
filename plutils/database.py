@@ -25,19 +25,29 @@ class DBConnection:
 	
 	#return the calibration (laser/flasher) run assigned to a given data run
 	def get_calib_run(self, runnum):
-		query="SELECT run_id FROM tblRun_Info WHERE run_type='flasher' AND run_id IN (SELECT run_id FROM tblRun_Group WHERE group_id = (SELECT group_id FROM tblRun_GroupComment WHERE group_id IN (SELECT group_id FROM tblRun_Group WHERE run_id = %s) AND group_type = 'laser'))"
+		query="SELECT run_id FROM tblRun_Info WHERE run_type IN ('flasher', 'laser') AND run_id IN (SELECT run_id FROM tblRun_Group WHERE group_id = (SELECT group_id FROM tblRun_GroupComment WHERE group_id IN (SELECT group_id FROM tblRun_Group WHERE run_id = %s) AND group_type IN ('laser', 'flasher') LIMIT 1))"
 		
 		self.cursor.execute(query, runnum)
-		calib_run=self.cursor.fetchone().get('run_id')
+		try: 
+			calib_run=str(self.cursor.fetchone().get('run_id'))
+		except AttributeError:
+			calib_run = None
+			err_str = "Could not determine the calibration run  for run {0}.".format(runnum)
+			print(err_str)
 		
-		return str(calib_run)
+		return calib_run
 	
 	#return the datetime associated with a given run
 	#note that this will return an object from the standard datetime class	
 	def get_datetime(self, runnum):
 		query="SELECT db_start_time FROM tblRun_Info WHERE run_id = %s"
 		self.cursor.execute(query, runnum)
-		dt=self.cursor.fetchone().get('db_start_time')
+		try:
+			dt=self.cursor.fetchone().get('db_start_time')
+		except AttributeError:
+			dt = None
+			err_str = "No datetime found for run {0}. Are you sure you have a valid run number?".format(runnum)
+			print(err_str)
 		return dt
 
 	#returns the dyyyymmdd date string associated with a given run
