@@ -50,6 +50,8 @@ class VAStage:
 			self.check_for_input('cvbf', [self.configdict.get('GLOBALCONFIG').get('RAWDATADIR')], True)
 		if self.needs_root:		
 			self.check_for_input('root', self.inputdirs)
+		if self.stage == '6'
+			self.write_stg6_runlist()
                 
 		#write condor files (if condor enables)
 		if self.is_condor_enabled():
@@ -341,7 +343,7 @@ class VAStage1(VAStage):
 
 		rawdir = self.configdict.get('GLOBALCONFIG').get('RAWDATADIR') + '/' + self.runlist[run].ddate
 		#Check for the file in the raw data directory
-		pattern=re.compile(run + '*.cvbf')
+		pattern=re.compile(run + '.*[.]cvbf')
 		file_exist=False
 		for file in os.listdir(rawdir):
 			m = pattern.match(file)
@@ -538,7 +540,6 @@ class VAStage6(VAStage):
 		self.use_existing = self.use_existing_output()
 
 		self.stg6_group_config()
-		self.write_stg6_runlist()
 
                 #write config and cut files
 		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
