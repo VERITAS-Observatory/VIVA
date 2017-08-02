@@ -247,7 +247,7 @@ class VAStage:
 		else:
 			if vp.endswith('/'):
 				vp = vp[:-1]
-				print('{0} : OK, I\'ll use the version of VEGAS found in {1}.'.format(self.stgconfigkey,vp))
+			print('{0} : OK, I\'ll use the version of VEGAS found in {1}.'.format(self.stgconfigkey,vp))
 			return vp
 			
 			
