@@ -50,7 +50,7 @@ class VAStage:
 			self.check_for_input('cvbf', [self.configdict.get('GLOBALCONFIG').get('RAWDATADIR')], True)
 		if self.needs_root:		
 			self.check_for_input('root', self.inputdirs)
-		if self.stage == '6'
+		if self.stage == '6':
 			self.write_stg6_runlist()
                 
 		#write condor files (if condor enables)
@@ -192,7 +192,6 @@ class VAStage:
 	def check_for_input(self, filetype, inputdirs, ddate_dir=False):
 										
 		for run in self.runlist.keys():
-			print(inputdirs)
 			file = self.get_file(run,filetype,inputdirs,ddate_dir)
 			if file == None:
 				err_str = self.stgconfigkey + ' : input ' + filetype + ' file could not be found for run ' + run

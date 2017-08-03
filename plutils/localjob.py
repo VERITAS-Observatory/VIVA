@@ -128,6 +128,9 @@ class LocalJob():
 	def execute(self):
 		self.proc = subprocess.Popen([self.exec_file],shell=True)
 		self.logw('({0}) job started\n'.format(datetime.now()))
+		#When a machine is busy, it can a bit of time for a job to start...
+		while self.proc.poll() == None:
+			time.sleep(0.25)
 		self.pid = self.get_pid()
 		self.status = 'submitted'
 
