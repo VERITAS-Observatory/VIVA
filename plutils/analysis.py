@@ -287,13 +287,13 @@ class AnalysisCore():
 	#Clean up as specified in the instructions file. Local clean up options override global clean up options.
 	def clean_up(self):
 		print('{0} : Cleaning up...'.format(self))
-		for stg in stg_objs.keys():
-			if "CLEANUP" in configdict.get(stg).keys():
-				clean_opts = configdict.get(stg).get('CLEANUP').split(':')
-				stg.clean_up(clean_opts)
-			elif "CLEANUP" in configdict.get('GLOBALCONFIG').keys():
-				clean_opts = configdict.get('GLOBALCONFIG').get("CLEANUP").split(':')
-				stg.clean_up(clean_opts)
+		for stg in self.stg_objs.keys():
+			if "CLEANUP" in self.configdict.get(stg).keys():
+				clean_opts = self.configdict.get(stg).get('CLEANUP').split(':')
+				self.stg_objs[stg].clean_up(clean_opts)
+			elif "CLEANUP" in self.configdict.get('GLOBALCONFIG').keys():
+				clean_opts = self.configdict.get('GLOBALCONFIG').get("CLEANUP").split(':')
+				self.stg_objs[stg].clean_up(clean_opts)
 	
 		
 class NoStgConfigsError(Exception):

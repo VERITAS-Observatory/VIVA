@@ -28,7 +28,7 @@ class VAStage:
 		print('{0} : Writing condor files in {1}.'.format(self.stgconfigkey,self.outputdir))	
 		juniverse='vanilla'
 		jexecutable = self.get_vegas_path() + '/bin/vaStage' + self.stage
-		jrequirements=''
+		jrequirements='Memory >= 1024'
 				
 		self.jobs = {}  
 		for run in self.runlist.keys():
@@ -37,7 +37,7 @@ class VAStage:
 			jlog = 'condor_' + run + '.log'	
 			jout = 'condor_' + run + '.out'
 			jerror = 'condor_' + run + '.error'
-			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir)
+			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size='2048000')
 			self.jobs.update({run : cj})		
 	
 	def execute(self):
@@ -269,8 +269,8 @@ class VAStage:
 							subprocess.run(['rm', path_to_file])
 						
 				elif co.lower() == 'output_bad':
-					for run in stg.runlist.keys():
-						if stg.jobs[run].existstatus != '0':
+					for run in self.runlist.keys():
+						if self.jobs[run].existstatus != '0':
 							file = get_file(run,'root',[self.outputdir])
 							subprocess.run(['rm', file])
                                                                 
@@ -282,8 +282,8 @@ class VAStage:
 							subprocess.run(['rm', path_to_file])
 					
 				elif co.lower() == 'logs_bad':
-					for run in stg.runlist.key():
-						if stg.jobs[run].existstatus != '0':
+					for run in self.runlist.key():
+						if self.jobs[run].existstatus != '0':
 							run_logfile_pat = re.compile('.*' + run + '[.](log|err|out|sub)')
 							for file in os.listdir(self.outputdir):
 								m = run_logfile_pat.match(file)
@@ -624,7 +624,7 @@ class VAStage6(VAStage):
 		jout = 'condor_' + jsubid + '.out'
 		jerror = 'condor_' + jsubid + '.error'
 
-		cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir)
+		cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size='2048000')
 		self.jobs.update({'stg6' : cj})
 						
 	def anl_existing_output(self):

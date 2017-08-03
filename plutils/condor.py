@@ -19,6 +19,9 @@ class CondorJob:
 			self.subid=kwargs.get('subid')
 		else:
 			self.subid = ''
+		self.image_size = ''
+		if 'image_size' in kwargs.keys():
+			self.image_size = kwargs.get('image_size')
 		
 		if not self.workingdir.endswith('/'):
 			self.workingdir=self.workingdir+'/'
@@ -36,6 +39,8 @@ class CondorJob:
 			sf.write("Arguments    = " + self.arguments + '\n')
 			sf.write("Requirements = " + self.requirements + '\n')
 			sf.write("GetEnv       = True" + '\n')
+			sf.write("image_size   = " + self.image_size + '\n')
+			sf.write("max_retries  = 100" + '\n')
 			sf.write('\n')
 			sf.write("Output = " + self.workingdir + self.output + '\n')
 			sf.write("Error  = " + self.workingdir + self.error + '\n')

@@ -58,7 +58,11 @@ print('Status = {0}'.format(ac.get_status()))
 section()
 
 print('Executing the analaysis...')
-ac.execute()
+try:
+	ac.execute()
+except:
+	ac.clean_up()
+	raise
 
 section()
 
