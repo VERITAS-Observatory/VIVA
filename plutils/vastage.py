@@ -25,10 +25,12 @@ class VAStage:
 
 	#Loop over the rungroup and write the condor submission files
 	def write_condor_files(self):
-		print('{0} : Writing condor files in {1}.'.format(self.stgconfigkey,self.outputdir))	
+		print('{0} : Writing condor files in {1}.'.format(self.stgconfigkey,self.outputdir))
+		vegas_path = self.get_vegas_path()	
 		juniverse='vanilla'
-		jexecutable = self.get_vegas_path() + '/bin/vaStage' + self.stage
-		jrequirements='Memory >= 1024'
+		jexecutable = vegas_path + '/bin/vaStage' + self.stage
+		jenvironment = "\"VEGAS={0}\"".format(vegas_path)
+		jrequirements=''
 				
 		self.jobs = {}  
 		for run in self.runlist.keys():
@@ -37,7 +39,7 @@ class VAStage:
 			jlog = 'condor_' + run + '.log'	
 			jout = 'condor_' + run + '.out'
 			jerror = 'condor_' + run + '.error'
-			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size='2048000')
+			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size='', environment=jenvironment)
 			self.jobs.update({run : cj})		
 	
 	def execute(self):
@@ -270,7 +272,7 @@ class VAStage:
 						
 				elif co.lower() == 'output_bad':
 					for run in self.runlist.keys():
-						if self.jobs[run].existstatus != '0':
+						if self.jobs[run].exitstatus != '0':
 							file = get_file(run,'root',[self.outputdir])
 							subprocess.run(['rm', file])
                                                                 
@@ -283,7 +285,7 @@ class VAStage:
 					
 				elif co.lower() == 'logs_bad':
 					for run in self.runlist.key():
-						if self.jobs[run].existstatus != '0':
+						if self.jobs[run].exitstatus != '0':
 							run_logfile_pat = re.compile('.*' + run + '[.](log|err|out|sub)')
 							for file in os.listdir(self.outputdir):
 								m = run_logfile_pat.match(file)
@@ -612,8 +614,10 @@ class VAStage6(VAStage):
 	#Need only one submit file needed for stage6
 	def write_condor_files(self):
 
+		vegas_path = self.get_vegas_path()	
 		juniverse='vanilla'
-		jexecutable = self.get_vegas_path() + '/bin/vaStage' + self.stage
+		jexecutable = vegas_path + '/bin/vaStage' + self.stage
+		jenvironment = "\"VEGAS={0}\"".format(vegas_path)
 		jrequirements=''
 
 		self.jobs = {}
@@ -624,7 +628,7 @@ class VAStage6(VAStage):
 		jout = 'condor_' + jsubid + '.out'
 		jerror = 'condor_' + jsubid + '.error'
 
-		cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size='2048000')
+		cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size='', environment=jenvironment)
 		self.jobs.update({'stg6' : cj})
 						
 	def anl_existing_output(self):

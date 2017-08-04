@@ -15,13 +15,18 @@ class CondorJob:
 		self.log=kwargs.get('log')
 		self.output=kwargs.get('output')
 		self.error=kwargs.get('error')
+
 		if 'subid' in kwargs.keys():
 			self.subid=kwargs.get('subid')
 		else:
 			self.subid = ''
+
 		self.image_size = ''
 		if 'image_size' in kwargs.keys():
 			self.image_size = kwargs.get('image_size')
+		
+		if 'environment' in kwargs.keys():
+			self.environment = kwargs.get('environment')
 		
 		if not self.workingdir.endswith('/'):
 			self.workingdir=self.workingdir+'/'
@@ -38,6 +43,7 @@ class CondorJob:
 			sf.write("Executable   = " + self.executable + '\n')
 			sf.write("Arguments    = " + self.arguments + '\n')
 			sf.write("Requirements = " + self.requirements + '\n')
+			sf.write("Environment  = " + self.environment + '\n')
 			sf.write("GetEnv       = True" + '\n')
 			sf.write("image_size   = " + self.image_size + '\n')
 			sf.write("max_retries  = 100" + '\n')
