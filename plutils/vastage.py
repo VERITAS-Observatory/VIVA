@@ -10,6 +10,7 @@ from . import condor
 
 #Base class consisting of the shared methods of the VEGAS analysis stages.
 class VAStage:
+	jobs = {}
 			
 	def is_condor_enabled(self):
 		
@@ -270,10 +271,10 @@ class VAStage:
 							path_to_file = self.outputdir + '/' + file
 							subprocess.run(['rm', path_to_file])
 						
-				elif co.lower() == 'output_bad':
+				elif co.lower() == 'output_bad' and self.status != 'initialized':
 					for run in self.runlist.keys():
 						if self.jobs[run].exitstatus != '0':
-							file = get_file(run,'root',[self.outputdir])
+							file = self.get_file(run,'root',[self.outputdir])
 							subprocess.run(['rm', file])
                                                                 
 				if co.lower() == 'logs':
@@ -283,7 +284,7 @@ class VAStage:
 							path_to_file = self.outputdir + '/' + self.outputdir
 							subprocess.run(['rm', path_to_file])
 					
-				elif co.lower() == 'logs_bad':
+				elif co.lower() == 'logs_bad' and self.status != 'initialized':
 					for run in self.runlist.key():
 						if self.jobs[run].exitstatus != '0':
 							run_logfile_pat = re.compile('.*' + run + '[.](log|err|out|sub)')

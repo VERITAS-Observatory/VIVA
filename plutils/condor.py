@@ -45,7 +45,8 @@ class CondorJob:
 			sf.write("Requirements = " + self.requirements + '\n')
 			sf.write("Environment  = " + self.environment + '\n')
 			sf.write("GetEnv       = True" + '\n')
-			sf.write("image_size   = " + self.image_size + '\n')
+			if self.image_size != '':
+				sf.write("image_size   = " + self.image_size + '\n')
 			sf.write("max_retries  = 100" + '\n')
 			sf.write('\n')
 			sf.write("Output = " + self.workingdir + self.output + '\n')
