@@ -1,3 +1,4 @@
+#!/usr/bin/env python3.6
 #Main script for the Very Independent VEGAS Analysis (VIVA)
 
 import sys 
@@ -61,8 +62,15 @@ print('Executing the analaysis...')
 try:
 	ac.execute()
 except:
-	ac.clean_up()
 	raise
+finally:
+	section()
+	print('+++++ Final Status +++++')
+	ac.print_status()
+
+	section()
+	print('Cleaning up...')	 
+	ac.clean_up()
 
 section()
 

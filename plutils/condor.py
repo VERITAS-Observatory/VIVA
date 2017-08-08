@@ -47,6 +47,7 @@ class CondorJob:
 			sf.write("GetEnv       = True" + '\n')
 			if self.image_size != '':
 				sf.write("image_size   = " + self.image_size + '\n')
+			sf.write("want_graceful_removal = True" + '\n') 
 			sf.write("max_retries  = 100" + '\n')
 			sf.write('\n')
 			sf.write("Output = " + self.workingdir + self.output + '\n')
@@ -119,8 +120,8 @@ class CondorJob:
 				if line.find('job terminated') != -1 and self.status in ['submitted', 'executing']:
 					self.status='terminated'
 				elif line.find('aborted') != -1 and self.status in ['submitted', 'executing']:
-					self.status='aborted'
-					self.exitstatus = 1
+					self.status='terminated'
+					self.exitstatus = '1'
 				elif line.find('job executing') != -1 and self.status == 'submitted':
 					self.status='executing'
 				

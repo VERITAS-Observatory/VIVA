@@ -278,7 +278,7 @@ class AnalysisCore():
 				if self.check_reqs(key)[1] == 'succeeded' and stg.status == 'initialized':
 					print('Starting analysis for stage {0}.'.format(key))
 					stg.execute()
-				elif self.check_reqs(key)[1] == 'failed':
+				elif self.check_reqs(key)[1] == 'failed' and stg.status != 'failed':
 					print('Requirements for stage {0} failed. Cannot proceed with this analysis chain.'.format(key))
 					stg.status = 'failed'
 
@@ -294,6 +294,12 @@ class AnalysisCore():
 			elif "CLEANUP" in self.configdict.get('GLOBALCONFIG').keys():
 				clean_opts = self.configdict.get('GLOBALCONFIG').get("CLEANUP").split(':')
 				self.stg_objs[stg].clean_up(clean_opts)
+
+	#Print the status of the overall analysis and the individual stages
+	def print_status(self):
+		print('+++ Analysis status = {0} +++'.format(self.status))
+		for k,s in self.stg_objs.items():
+			s.print_status()
 	
 		
 class NoStgConfigsError(Exception):

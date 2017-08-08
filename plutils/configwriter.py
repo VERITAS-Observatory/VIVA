@@ -1,16 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jul 17 18:57:34 2017
-
-@author: yuqing
-"""
+#Class for managing the writing of the cuts and config files for each analysis stage
 
 import os
-#import fileinput
 import sys
 import subprocess
-
 
 class ConfigWriter:
 	
@@ -25,7 +17,7 @@ class ConfigWriter:
 		self.outputdir = outputdir
 		if not self.outputdir.endswith('/'):
 			self.outputdir = self.outputdir + '/'
-		
+	
 		self.configfilepath = None
 		self.cutsfilepath = None
 			
@@ -55,6 +47,8 @@ class ConfigWriter:
 		elif conf_type == 'cuts': 
 			filepath = self.outputdir + self.cutsfilename
 
+		unk_opts = list(self.configdict[self.stagekey].keys())
+
 		with open(filepath, 'w') as conf_file:
 			for line in template_lines:
 				if not line.startswith('#') and not line.isspace():
@@ -63,6 +57,7 @@ class ConfigWriter:
 						val = self.configdict[self.stagekey][opt]
 						rep = opt + ' ' + val
 						line = line.replace(line, rep)
+						unk_opts.remove(opt)
 						conf_file.write(line)
 					else:
 						conf_file.write(line)
@@ -73,29 +68,5 @@ class ConfigWriter:
 			self.configfilepath = filepath
 		elif conf_type == 'cuts':		
 			self.cutsfilepath = filepath
-		return filepath	 
-
-''' run example
-stagedict = {1:'Stage1', 2:'Stage2', 4.2:'Stage4', 5:'Stage5', 6:'Stage6'}
-configdict = {'GlobalConfig': {'Database': [''],
-  'RawDataDir': [''],
-  'Runlist1': ['runlist1.txt'],
-  'Runlist2': [''],
-  'Runlist3': [''],
-  'VEGASDir': [''],
-  'WorkingDir': ['']},
- 'Stage1': {},
- 'Stage2': {},
- 'Stage4': {'DistanceUpper': [''], 'NTubesMin': [''], 'SizeLower': ['']},
- 'Stage5': {'MaxHeightLower': ['7'],
-  'MeanScaledLengthLower': ['0.05'],
-  'MeanScaledLengthUpper': ['1.3'],
-  'MeanScaledWidthLower': ['0.05'],
-  'MeanScaledWidthUpper': ['1.1']},
- 'Stage6': {'RBM_SearchWindowSqCut': ['0.03'], 'S6A_RingSize': ['0.17']}}
- 
-stg5 = writer(configdict, stagedict, 5, '/home/vhep/yuqing/dev_yuqing/vegas-analysis-pipeline/plutils/ConfigDir/')
-stg5.run()
-'''
-
+		return (filepath, unk_opts)	 
 

@@ -7,10 +7,13 @@ import time
 from . import configwriter
 from . import runmanager
 from . import condor
+from . import fontstyle
 
 #Base class consisting of the shared methods of the VEGAS analysis stages.
 class VAStage:
+	
 	jobs = {}
+	valid_opts = ['USECONDOR', 'USEEXISTINGOUTPUT', 'KILLONFAILURE', 'VEGASPATH', 'CLEANUP', 'INPUTDIR', 'OUTPUTDIR']
 			
 	def is_condor_enabled(self):
 		
@@ -40,7 +43,7 @@ class VAStage:
 			jlog = 'condor_' + run + '.log'	
 			jout = 'condor_' + run + '.out'
 			jerror = 'condor_' + run + '.error'
-			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size='', environment=jenvironment)
+			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size=str(2048*1024), environment=jenvironment)
 			self.jobs.update({run : cj})		
 	
 	def execute(self):
@@ -108,15 +111,28 @@ class VAStage:
 						jexitstatus = self.jobs[run].exitstatus
 					if jexitstatus != '0':
 						n_failed = n_failed + 1
-		#print([self.stgconfigkey,n_submitted, n_executing,n_terminated,n_failed])
-		#Abort processing this run group if one of the runs fails	
+
 		if n_failed > 0:
-			print('Error occured while running analysis for ', self.stgconfigkey, '. This analysis has been aborted.')
-			self.kill()
+			if self.status != 'failed' and 'KILLONFAILURE' in self.configdict[self.stgconfigkey].keys():
+				if self.configdict[self.stgconfigkey]['KILLONFAILURE'].lower() in ['true', '1']:
+					f_str = '{0} : Failed job detect! Killing this analysis stage...'.format(self.stgconfigkey)
+					f_str = self.bad_fmt(f_str)
+					print(f_str)
+					self.kill()
+			elif self.status != 'failed':
+				f_str = '{0} : Failed runs detected!'.format(self.stgconfigkey)
+				f_str = self.bad_fmt(f_str)
+				print(f_str) 
 			self.status = 'failed'
 		elif n_terminated == len(self.jobs.keys()):
-			self.status = 'succeeded'
+			if self.status != 'succeeded':
+				s_str = '{0} : Succeeded!'.format(self.stgconfigkey)
+				s_str = self.good_fmt(s_str)
+				print(s_str)
+				self.status = 'succeeded'
 		elif n_executing > 0:
+			if self.status != 'executing':
+				print('{0} : Executing!'.format(self.stgconfigkey))
 			self.status = 'executing'
 		elif n_submitted > 0:
 			self.status = 'submitted'
@@ -198,6 +214,7 @@ class VAStage:
 			file = self.get_file(run,filetype,inputdirs,ddate_dir)
 			if file == None:
 				err_str = self.stgconfigkey + ' : input ' + filetype + ' file could not be found for run ' + run
+				err_str = self.bad_fmt(err_str)
 				raise InputFileError(err_str)
 
 		return True #No errors raised
@@ -247,6 +264,7 @@ class VAStage:
 		
 		if vp == None or not os.path.isdir(vp): 
 			err_str = '{0}: could not resolve vegas path'.format(self.stgconfigkey)
+			err_str = self.bad_fmt(err_str)
 			raise Exception(err_str)
 		else:
 			if vp.endswith('/'):
@@ -254,44 +272,95 @@ class VAStage:
 			print('{0} : OK, I\'ll use the version of VEGAS found in {1}.'.format(self.stgconfigkey,vp))
 			return vp
 			
-			
-		
+	#Print the current status of the stage and it's constituent jobs
+	def print_status(self):
+		print('{0} : Stage status = {1}'.format(self.stgconfigkey, self.status))
+		if len(self.jobs.keys()) > 0:
+			print('    run : status')
+			for r,j in self.jobs.items():
+				tmp_str = '    ' + r + ' : '
+				if j.exitstatus == '0':
+					tmp_str = tmp_str + self.good_fmt(j.exitstatus)
+				else:
+					tmp_str = tmp_str + self.bad_fmt(j.exitstatus)
+				print(tmp_str)
+	
+	#Return the overlap among the list of unknown options
+	def unk_opts_check(self, *args):
+		unk_opts = []
+		for i in range(len(args)):
+			for opt in args[i]:
+				opt_known = False
+				if opt in self.valid_opts:
+					opt_known = True
+				for j in [v for v in range(len(args)) if v != i]:
+					if not opt in args[j]:
+						opt_known = True
+				if not opt_known and opt not in unk_opts:
+					unk_opts.append(opt)
+				
+		return unk_opts		
+	
+	#Common text formattings
+	def bad_fmt(self, err_str):
+		return fontstyle.set_style(err_str, txt_clr = 'white', bg_clr='red', format='bold')
+
+	def wrn_fmt(self, wrn_str):
+		return fontstyle.set_style(wrn_str, txt_clr = 'black', bg_clr='yellow', format='bold')
+
+	def good_fmt(self, gd_str):
+		return fontstyle.set_style(gd_str, txt_clr='white', bg_clr='green', format='bold')	
+	
+	
+	
 	#Cleans up files produced by this stage based on the contents of the clean_opts list.						
 	def clean_up(self, clean_opts):
 		for co in clean_opts:
 			if co.lower() == 'all':
+				print('{0} : Removing everything from {1}'.format(self.stgconfigkey,self.outputdir))
 				subprocess.run(['rm','-r', self.outputdir])
 			else:
 				outfile_pat = re.compile('[0-9]+[.]*.*[.]root')
 				logfile_pat = re.compile('.*[.](log|err|out|sub)')
 				if co.lower() == 'output':
+					print('{0} : Removing output root files from {1}'.format(self.stgconfigkey,self.outputdir))
 					for file in os.listdir(self.outputdir):
 						m = outfile_pat.match(file)
 						if m != None:
 							path_to_file = self.outputdir + '/' + file
+							print('    Deleting {0}'.format(path_to_file))
 							subprocess.run(['rm', path_to_file])
 						
 				elif co.lower() == 'output_bad' and self.status != 'initialized':
-					for run in self.runlist.keys():
-						if self.jobs[run].exitstatus != '0':
-							file = self.get_file(run,'root',[self.outputdir])
-							subprocess.run(['rm', file])
+					print('{0} : Removing output root files of failed jobs from {1}'.format(self.stgconfigkey, self.outputdir))
+					for r,j in self.jobs.items():
+						if j.exitstatus != '0':
+							file = self.get_file(r,'root',[self.outputdir])
+							if file != None:
+								print('    Deleting {0}'.format(file))
+								subprocess.run(['rm', file])
+							else:
+								print('    No root file found for failed run {0}'.format(r))
                                                                 
 				if co.lower() == 'logs':
+					print('{0} : Removing all logs from {1}'.format(self.stgconfigkey, self.outputdir))
 					for file in os.listdir(self.outputdir):
 						m = logfile_pat.match(file)
 						if m != None:
 							path_to_file = self.outputdir + '/' + self.outputdir
+							print('    Deleting {0}'.format(path_to_file))
 							subprocess.run(['rm', path_to_file])
 					
 				elif co.lower() == 'logs_bad' and self.status != 'initialized':
-					for run in self.runlist.key():
-						if self.jobs[run].exitstatus != '0':
-							run_logfile_pat = re.compile('.*' + run + '[.](log|err|out|sub)')
+					print('{0} : Removing logs for failed jobs from {1}'.format(self.stgconfigkey, self.outputdir))
+					for r,j in self.jobs.items():
+						if j.exitstatus != '0':
+							run_logfile_pat = re.compile('.*' + r + '[.](log|err|out|sub)')
 							for file in os.listdir(self.outputdir):
 								m = run_logfile_pat.match(file)
 								if m != None:
 									path_to_file = self.outputdir + '/' + file
+									print('    Deleting {0}'.format(path_to_file))
 									subprocess.run(['rm', path_to_file])
 						
 	
@@ -327,7 +396,14 @@ class VAStage1(VAStage):
 		
                 #write config file
 		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-		self.config = cw.write('config')
+		conf_t = cw.write('config')
+		self.config=conf_t[0]
+		
+		self.unk_opts = self.unk_opts_check(conf_t[1])
+		for opt in self.unk_opts:
+			wrn_str = '{0} : Unknown options/configuration/cut : {1}'.format(self.stgconfigkey, opt)
+			wrn_str = self.wrn_fmt(wrn_str)	
+			print(wrn_str)	
 
 		self.status='initialized'
 
@@ -355,6 +431,7 @@ class VAStage1(VAStage):
 				break
 		if not file_exist:
 			err_str = self.stgconfigkey + ' : Could not find a raw data file for run ' + run + ' in input directory ' + rawdir
+			err_str = self.bad_fmt(err_str)
 			raise InputFileError(err_str)
 			
 		arg_str = arg_str + " " + rawdir + "/" + inputfile
@@ -391,7 +468,14 @@ class VAStage2(VAStage):
 		
                 #write config file
 		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-		self.config = cw.write('config')
+		conf_t = cw.write('config')
+		self.config=conf_t[0]
+		
+		self.unk_opts = self.unk_opts_check(conf_t[1])
+		for opt in self.unk_opts:
+			wrn_str = '{0} : Unknown options/configuration/cut : {1}'.format(self.stgconfigkey, opt)
+			wrn_str = self.wrn_fmt(wrn_str)	
+			print(wrn_str)	
 
 		self.status='initialized'
 	
@@ -436,12 +520,22 @@ class VAStage4(VAStage):
 
                 #write config and cut files
 		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-		self.config = cw.write('config')
-		self.cuts = cw.write('cuts')
+		conf_t = cw.write('config')
+		cuts_t = cw.write('cuts')
+		self.config = conf_t[0]
+		self.cuts = cuts_t[0]
+		
+		self.unk_opts = self.unk_opts_check(conf_t[1], cuts_t[1])
+		for opt in self.unk_opts:
+			wrn_str = '{0} : Unknown options/configuration/cut : {1}'.format(self.stgconfigkey, opt)
+			wrn_str = self.wrn_fmt(wrn_str)	
+			print(wrn_str)	
 		
 		if 'LTM_LookupTableFile' not in self.configdict[self.stgconfigkey].keys():
-			print('{0} : No lookup table specified. If this is a standard analysis, your jobs will likely fail.'.format(self.stgconfigkey)) 
-			print('Consider adding LTM_LookupTableFile=\'filepath_to_lt\' to your instructions file definition for this stage.')
+			wrn_str = '{0} : No lookup table specified. If this is a standard analysis, your jobs will likely fail.\n'.format(self.stgconfigkey) 
+			wrn_str = wrn_str + 'Consider adding LTM_LookupTableFile=\'filepath_to_lt\' to your instructions file definition for this stage.'
+			wrn_str = self.wrn_fmt(wrn_str)
+			print(wrn_str)
 	
 		self.status='initialized'
 	
@@ -483,13 +577,22 @@ class VAStage5(VAStage):
 		self.use_existing = self.use_existing_output()
 		
 		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-		self.config = cw.write('config')
-		self.cuts = cw.write('cuts')
+		conf_t = cw.write('config')
+		cuts_t = cw.write('cuts')
+		self.config = conf_t[0]
+		self.cuts = cuts_t[0]
+		
+		self.unk_opts = self.unk_opts_check(conf_t[1], cuts_t[1])
+		for opt in self.unk_opts:
+			wrn_str = '{0} : Unknown options/configuration/cut : {1}'.format(self.stgconfigkey, opt)
+			wrn_str = self.wrn_fmt(wrn_str)	
+			print(wrn_str)	
         	
 		if not 'Method' in self.configdict[self.stgconfigkey].keys():
 			info_str = '{0} : Warning, no event selection method was specified with Method=<method_type>.\n'.format(self.stgconfigkey)
 			info_str = info_str + 'Note: vaStage5 will default to VANullEventSelection, which is unlikely to be desireable.\n'
 			info_str = info_str + 'Consider adding Method=\"VAStereoEventSelection\" or Method=\"VACombinedEventSelection\" to the instructions file.'
+			info_str = self.wrn_fmt(info_str)
 			print(info_str)
         
 		self.status='initialized'
@@ -545,8 +648,16 @@ class VAStage6(VAStage):
 
                 #write config and cut files
 		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
-		self.config = cw.write('config')
-		self.cuts = cw.write('cuts')
+		conf_t = cw.write('config')
+		cuts_t = cw.write('cuts')
+		self.config = conf_t[0]
+		self.cuts = cuts_t[0]
+		
+		self.unk_opts = self.unk_opts_check(conf_t[1], cuts_t[1])
+		for opt in self.unk_opts:
+			wrn_str = '{0} : Unknown options/configuration/cut : {1}'.format(self.stgconfigkey, opt)
+			wrn_str = self.wrn_fmt(wrn_str)	
+			print(wrn_str)	
 
 		self.status='initialized'
 
@@ -554,7 +665,7 @@ class VAStage6(VAStage):
 
 		arg_str = ''
 		arg_str = arg_str + '-S6A_Batch=1'
-		arg_str = arg_str + ' -S6A_OutputFileName=' + self.stgconfigkey.lower().replace(':','-') + '_'
+		arg_str = arg_str + ' -S6A_OutputFileName=' + self.stgconfigkey.lower().replace(':','-')
 		arg_str = arg_str + ' -S6A_ConfigDir=' + self.outputdir
 		arg_str = arg_str + ' -S6A_Batch=1'
 		arg_str = arg_str + ' -cuts=' + self.cuts 
@@ -629,7 +740,7 @@ class VAStage6(VAStage):
 		jout = 'condor_' + jsubid + '.out'
 		jerror = 'condor_' + jsubid + '.error'
 
-		cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size='', environment=jenvironment)
+		cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size=str(2048*1024), environment=jenvironment)
 		self.jobs.update({'stg6' : cj})
 						
 	def anl_existing_output(self):
