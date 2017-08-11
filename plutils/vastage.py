@@ -124,7 +124,7 @@ class VAStage:
 				f_str = self.bad_fmt(f_str)
 				print(f_str) 
 			self.status = 'failed'
-		elif n_terminated == len(self.jobs.keys()):
+		elif n_terminated == len(self.jobs.keys()) and self.status != 'failed':
 			if self.status != 'succeeded':
 				s_str = '{0} : Succeeded!'.format(self.stgconfigkey)
 				s_str = self.good_fmt(s_str)

@@ -39,4 +39,14 @@ def set_style(str, **kwargs):
 			print('set_style : unreconized arguement: {0}'.format(opt))
 	
 	return '\033[' + opt_str.rstrip(';') + 'm' + str + '\033[0m'
-			
+
+	
+#Predefined text formattings
+def bad_fmt(self, err_str):
+	return fontstyle.set_style(err_str, txt_clr = 'white', bg_clr='red', format='bold')
+
+def wrn_fmt(self, wrn_str):
+	return fontstyle.set_style(wrn_str, txt_clr = 'black', bg_clr='yellow', format='bold')
+
+def good_fmt(self, gd_str):
+	return fontstyle.set_style(gd_str, txt_clr='white', bg_clr='green', format='bold')	

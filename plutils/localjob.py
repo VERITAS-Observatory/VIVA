@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 import re
 
-class LocalJobQueue():
+class ShellJobQueue():
 	
 	def __init__(self, **kwargs):
 
@@ -74,7 +74,7 @@ class LocalJobQueue():
 		return self.status
 		
 
-class LocalJob():
+class ShellJob():
 
 	def __init__(self, **kwargs):
 
@@ -84,6 +84,10 @@ class LocalJob():
 		
 		if not self.workingdir.endswith('/'):
 			self.workingdir = self.workingdir + '/'
+
+		self.remotehost=None
+		if 'remotehost' in kwargs.keys():
+			self.remotehost = kwargs.get('remotehost')
 
 		self.out = False
 		if 'out' in kwargs.keys():
@@ -123,7 +127,11 @@ class LocalJob():
 		return self.id_str
 
 	def execute(self):
-		self.proc = subprocess.Popen([self.exec_file],shell=True)
+		if self.remotehost != None:
+			rem_cmd = 'bash -s < ' + self.exec_file 
+			self.proc = subprocess.Popen(['ssh', self.remotehost, rem_cmd], shell=True)
+		else:
+			self.proc = subprocess.Popen([self.exec_file],shell=True)
 		self.logw('({0}) job started\n'.format(datetime.now()))
 		#When a machine is busy, it can a bit of time for a job to start...
 		while self.get_pid() == None:
@@ -202,14 +210,22 @@ class LocalJob():
 		return pid
 
 	def get_pid_list(self):
-		sp = subprocess.Popen(['ps','aux'], stdout=subprocess.PIPE)
+		if self.remotehost != None:
+			sp = subprocess.Popen(['ssh', self.remotehost, 'ps', 'aux'], stdout=subprocess.PIPE)
+		else:
+			sp = subprocess.Popen(['ps','aux'], stdout=subprocess.PIPE)
+		sp.wait()
 		psl = sp.communicate()[0].decode('utf-8').split('\n')[1:]
 		pids = [line.split()[1] for line in psl if len(line.split()) > 1]
 		return pids
 
 	def is_defunct(self):
 		is_defunct = False
-		sp = subprocess.Popen(['ps','aux'], stdout=subprocess.PIPE)
+		if self.remotehost != None:
+			sp = subprocess.Popen(['ssh', self.remotehost, 'ps', 'aux'], stdout=subprocess.PIPE)
+		else:
+			sp = subprocess.Popen(['ps','aux'], stdout=subprocess.PIPE)
+		sp.wait()
 		psl = sp.communicate()[0].decode('utf-8').split('\n')[1:]
 		for line in psl: 
 			if len(line.split()) > 1:
