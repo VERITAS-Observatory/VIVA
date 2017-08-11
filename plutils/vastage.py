@@ -112,18 +112,22 @@ class VAStage:
 					if jexitstatus != '0':
 						n_failed = n_failed + 1
 
-		if n_failed > 0:
+		if n_failed > 0 and n_executing > 0:
 			if self.status != 'failed' and 'KILLONFAILURE' in self.configdict[self.stgconfigkey].keys():
 				if self.configdict[self.stgconfigkey]['KILLONFAILURE'].lower() in ['true', '1']:
 					f_str = '{0} : Failed job detect! Killing this analysis stage...'.format(self.stgconfigkey)
 					f_str = self.bad_fmt(f_str)
 					print(f_str)
+					self.status = 'failed'
 					self.kill()
-			elif self.status != 'failed':
+			elif self.status != 'executing':
+				self.status = 'executing'
+		elif n_failed > 0 and n_terminated == len(self.jobs.keys()):
+			if self.status != 'failed':
 				f_str = '{0} : Failed runs detected!'.format(self.stgconfigkey)
 				f_str = self.bad_fmt(f_str)
 				print(f_str) 
-			self.status = 'failed'
+				self.status = 'failed'
 		elif n_terminated == len(self.jobs.keys()) and self.status != 'failed':
 			if self.status != 'succeeded':
 				s_str = '{0} : Succeeded!'.format(self.stgconfigkey)
