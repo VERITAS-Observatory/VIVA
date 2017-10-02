@@ -22,8 +22,8 @@ GLOBALCONFIG{
 	#Runlist group tag associations. The tag is arbitrary alphanumeric specifier of your
 	#choice. Omitting the group specifier for a single runlist analysis should be
 	#work, but has not yet been tested.
-	RUNLIST:GRP1=./test.rl
-	RUNLIST:GRP2=./test2.rl
+	RUNLIST:GRP1=./sample_runlist1_1.rl
+	RUNLIST:GRP2=./sample_runlist2_1.rl
 
 	#The following DB Options are also accessible by stage 2
 	DBHOSTNAME=romulus.ucsc.edu
