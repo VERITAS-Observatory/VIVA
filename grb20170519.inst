@@ -1,0 +1,123 @@
+#Example instruction file for performing for performing bothan an ITM and standard analysis on the same runlist
+#(The example data processed here is from GRB170519)
+
+GLOBALCONFIG{
+	#The following option doesn't always seem to work as intended. Make sure to point VEGAS and VERITASBASE to correct build in your .bashrc profile
+	VEGASPATH=/veritas_tools/vegas/Model3D_dev
+
+	#You will need to change the following line a directory to which you can write.
+	WORKINGDIR=/home/vhep/ssscott/veritas/data/GRB20170519
+
+	RAWDATADIR=/veritas_data/raw
+
+	RUNLIST:STD:ITM=./sample_runlist2.rl
+	
+	DBHOSTNAME=romulus.ucsc.edu
+	DBNAME=VERITAS
+	DBUSERNAME=readonly
+
+	USECONDOR=True
+}
+
+VASTAGE1:STD:ITM{
+	USEEXISTINGOUTPUT=False #This can be set to true if desired
+	CLEANUP=output_bad
+}
+
+VASTAGE2:STD:ITM{
+
+	USEEXISTINGOUTPUT=False
+	CLEANUP=output_bad
+
+	Stage2_WriteCalibratedEvents=1
+	Stage2_CalibratedEventCleaning="RING1" 
+}
+
+VASTAGE4:STD{
+
+	USEEXISTINGOUTPUT=False
+	CLEANUP=output_bad
+
+	LTM_LookupTableFile="/veritas_data/lookup_tables/v250/lt_Oct2012_ua_ATM22_7samples_vegasv250rc5_allOffsets_LZA_noise150fix.root"
+	DistanceUpper=0/1.43
+	SizeLower=0/400
+	NTubesMin=0/5
+
+}
+
+VASTAGE4:ITM{
+
+	USEEXISTINGOUTPUT=True
+	CLEANUP=output_bad
+
+	M3D_Algorithm="ImageTemplateModel"
+	ITM_templateList="/veritas_data/frogsTemplates3/TemplateList_Oct2012_V6sft_ATM22_v4.txt"
+
+	LTM_LookupTableFile="/veritas_data/lookup_tables/v250/lt_Oct2012_ua_ATM22_7samples_vegasv250rc5_allOffsets_LZA_noise150fix.root"
+	DistanceUpper=0/1.43
+	SizeLower=0/400
+	NTubesMin=0/5
+
+}
+
+VASTAGE5:STD{
+
+	USEEXISTINGOUTPUT=True
+	CLEANUP=output_bad
+	
+	MeanScaledWidthLower=0.05
+	MeanScaledWidthUpper=1.1
+	MeanScaledLengthLower=0.05
+	MeanScaledLengthUpper=1.3
+	MaxHeightLower=7
+	Method="stereo"
+
+}
+
+VASTAGE5:ITM{
+
+	USEEXISTINGOUTPUT=True
+	CLEANUP=output_bad
+
+	MeanScaledWidthLower=0.05
+	MeanScaledWidthUpper=1.1
+	MeanScaledLengthLower=0.05
+	MeanScaledLengthUpper=1.3
+	MaxHeightLower=7
+	Method="stereo"
+
+}
+
+VASTAGE6:STD{
+
+	USEEXISTINGOUTPUT=True
+	CLEANUP=output_bad
+
+	S6A_RingSize=0.1
+	RBM_SearchWindowSqCut=0.01
+	S6A_ExcludeSource=1
+	S6A_SourceExclusionRadius=0.3
+
+	#Make sure you change this position of your source!
+	S6A_TestPositionRA=163.42688
+	S6A_TestPositionDEC=25.37431
+
+}
+
+
+VASTAGE6:ITM{
+
+	USEEXISTINGOUTPUT=False
+	CLEANUP=output_bad
+
+	S6A_UseM3DBranch=1
+	RBM_HistoBinSizeInDegrees=0.0125
+	
+	S6A_RingSize=0.1
+	RBM_SearchWindowSqCut=0.01
+	S6A_ExcludeSource=1
+	S6A_SourceExclusionRadius=0.3
+	S6A_TestPositionRA=163.42688
+	S6A_TestPositionDEC=25.37431
+
+}
