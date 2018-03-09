@@ -7,6 +7,7 @@ import time
 import re
 from . import vastage
 from . import runmanager
+from . import fontstyle
 
 class AnalysisCore():
 	def __init__(self, **kwargs):
@@ -51,8 +52,22 @@ class AnalysisCore():
 				stg_inputdirs = self.get_input_dirs(k)
 				stg_outputdir = self.get_output_dir(k)				
 					
-				#Get the rungroups to be processed through a different state
+				#Get the rungroups to be processed
 				stg_rungroups=self.runmanager.get_run_groups(group_tag)
+				
+				#Check to make sure each group is associated with a runlist
+				groups=group_tag.split(':')
+				no_rl_grps = []
+				for grp in groups:
+					if not grp in stg_rungroups.keys():
+						no_rl_grps.append(grp)
+				if len(no_rl_grps) > 0:
+					err_str = "{0}: No runlist has been assigned to the following groups:".format(k)
+					for grp in no_rl_grps:
+						err_str = err_str + ' ' + grp
+					err_str = self.bad_fmt(err_str)
+					raise GroupMissingRunlistError(err_str)
+								   
 			
 				#Get an object of the correct class
 				stg_obj_type = self.get_vastage_obj_type(k)
@@ -64,6 +79,7 @@ class AnalysisCore():
 		if self.n_stgs == 0:
 			err_str = 'No configuration options found for any known stages of VEGAS.\n'
 			err_str = err_str + 'Check the instructions file to ensure that the VASTAGE configurations are defined correctly'
+			err_str = self.bad_fmt(err_str)
 			raise NoStgConfigsError(err_str)
 	
 	#Get a vastage object of the correct using stage key 
@@ -301,8 +317,20 @@ class AnalysisCore():
 		for k,s in self.stg_objs.items():
 			s.print_status()
 	
+	#Common text formattings
+	def bad_fmt(self, err_str):
+		return fontstyle.set_style(err_str, txt_clr = 'white', bg_clr='red', format='bold')
+
+	def wrn_fmt(self, wrn_str):
+		return fontstyle.set_style(wrn_str, txt_clr = 'black', bg_clr='yellow', format='bold')
+
+	def good_fmt(self, gd_str):
+		return fontstyle.set_style(gd_str, txt_clr='white', bg_clr='green', format='bold')	
 		
 class NoStgConfigsError(Exception):
+	pass
+
+class GroupMissingRunlistError(Exception):
 	pass		
 			
 				

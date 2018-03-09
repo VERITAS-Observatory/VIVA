@@ -29,9 +29,9 @@ class ShellJobQueue():
 		while(self.get_status() != 'terminated'):
 			for k,j in self.jobdict.items():
 				if j.get_status() == 'initialized' and self.active_procs < self.proc_limit:
-					print(j)
+					#print(j)
 					j.execute()
-					print(j.pid+'p')
+					print('Starting job ', j, ' PID: ', j.pid)
 					self.active_procs = self.active_procs + 1
 
 			time.sleep(self.update_T)
@@ -46,7 +46,7 @@ class ShellJobQueue():
 		for k,j in self.jobdict.items():
 
 			jstatus = j.get_status()
-			print(k, ' : status = ', jstatus)	
+			#print(k, ' : status = ', jstatus)	
 			if jstatus == 'executing':
 				n_executing = n_executing + 1
 			elif jstatus == 'terminated':
@@ -245,13 +245,13 @@ class ShellJob():
 
 	def poll(self):
 		if self.is_executing() and not self.is_defunct():
-			print(self.pid, ' executing')
+			#print(self.pid, ' executing')
 			return None
 		else:
 			lc = self.logr('return')
 			if len(lc) > 0:
 				rv = lc[0][-1]
-				print(self.pid, ' rv = ', rv)
+				print('{0} (PID: {1}) completed with return value {2}'.format(self,self.pid,rv))
 				return rv
 			else:
 				raise IOError("{0} : Return value expected in log file, but not found.".format(self))

@@ -23,7 +23,7 @@ GLOBALCONFIG{
 	#choice. Omitting the group specifier for a single runlist analysis should be
 	#work, but has not yet been tested.
 	RUNLIST:GRP1=./sample_runlist1_1.rl
-	RUNLIST:GRP2=./sample_runlist2_1.rl
+	RUNLIST:GRP2=./sample_runlist1_2.rl
 
 	#The following DB Options are also accessible by stage 2
 	DBHOSTNAME=romulus.ucsc.edu
