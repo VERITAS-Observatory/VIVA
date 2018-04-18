@@ -6,14 +6,14 @@ import subprocess
 
 class ConfigWriter:
 	
-	def __init__(self, configdict, stagekey, stagenum, outputdir):
+	def __init__(self, configdict, stagekey, stagenum, executable, outputdir):
 		self.configdict = configdict
 		self.stagekey = stagekey
 		self.stagenum = stagenum
+		self.executable = executable
 		self.stagename = stagekey.lower().replace(':','-')
 		self.configfilename = self.stagename + '_config.txt'
 		self.cutsfilename = self.stagename + '_cuts.txt'
-		self.vastage = 'vaStage' + str(stagenum)
 		self.outputdir = outputdir
 		if not self.outputdir.endswith('/'):
 			self.outputdir = self.outputdir + '/'
@@ -28,7 +28,7 @@ class ConfigWriter:
 		#Remove existing templates, just in case vegas version has changed.
 		subprocess.run(['rm','-f',template_file])
 
-		subprocess.run([self.vastage,'-save_' + template_type + '_and_exit=' + template_file], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		subprocess.run([self.executable, '-save_' + template_type + '_and_exit=' + template_file], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 		if os.path.isfile(template_file):
 			return template_file
 		else:

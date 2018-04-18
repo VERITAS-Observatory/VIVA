@@ -12,8 +12,12 @@ from . import fontstyle
 #Base class consisting of the shared methods of the VEGAS analysis stages.
 class VAStage:
 	
+	stage = '0'
+	vegas_path = ''
+	vegas_exec = ''
+	
 	jobs = {}
-	valid_opts = ['USECONDOR', 'USEEXISTINGOUTPUT', 'KILLONFAILURE', 'VEGASPATH', 'CLEANUP', 'INPUTDIR', 'OUTPUTDIR']
+	valid_opts = ['USECONDOR', 'USEEXISTINGOUTPUT', 'KILLONFAILURE', 'VEGASPATH', 'CLEANUP', 'INPUTDIR', 'OUTPUTDIR', 'EA']
 			
 	def is_condor_enabled(self):
 		
@@ -30,19 +34,23 @@ class VAStage:
 	#Loop over the rungroup and write the condor submission files
 	def write_condor_files(self):
 		print('{0} : Writing condor files in {1}.'.format(self.stgconfigkey,self.outputdir))
-		vegas_path = self.get_vegas_path()	
 		juniverse='vanilla'
-		jexecutable = vegas_path + '/bin/vaStage' + self.stage
-		jenvironment = "\"VEGAS={0}\"".format(vegas_path)
+		jexecutable = self.vegas_exec
+		jenvironment = "\"VEGAS={0}\"".format(self.vegas_path)
 		jrequirements=''
 				
-		self.jobs = {}  
+		self.jobs = {} 
 		for run in self.runlist.keys():
 			jsubid = run
 			jarguments = self.get_arguments_str(run)
 			jlog = 'condor_' + run + '.log'	
 			jout = 'condor_' + run + '.out'
 			jerror = 'condor_' + run + '.error'
+			if self.needs_cvbf:
+				cvbf_file = self.get_file(run, 'cvbf', [self.configdict.get('GLOBALCONFIG').get('RAWDATADIR')], True)
+				machine = self.get_file_host(cvbf_file)
+				jrequirements = "(machine == \"" + machine + "\")"
+				
 			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size=str(2048*1024), environment=jenvironment)
 			self.jobs.update({run : cj})		
 	
@@ -251,7 +259,7 @@ class VAStage:
 	
 	#get the path the vegas directory (the parent directory of bin, common, resultsExtractor, etc.)
 	def get_vegas_path(self):
-		print('{0} : Looking for the appropriate version of VEGAS to use...'.format(self.stgconfigkey))
+		print('    {0} : Looking for the appropriate version of VEGAS to use...'.format(self.stgconfigkey))
 		vp = None
 		if 'VEGASPATH' in self.configdict[self.stgconfigkey].keys():
 			vp = self.configdict[self.stgconfigkey].get('VEGASPATH')
@@ -267,13 +275,13 @@ class VAStage:
 					vp = None
 		
 		if vp == None or not os.path.isdir(vp): 
-			err_str = '{0}: could not resolve vegas path'.format(self.stgconfigkey)
+			err_str = '    {0}: could not resolve vegas path'.format(self.stgconfigkey)
 			err_str = self.bad_fmt(err_str)
 			raise Exception(err_str)
 		else:
 			if vp.endswith('/'):
 				vp = vp[:-1]
-			print('{0} : OK, I\'ll use the version of VEGAS found in {1}.'.format(self.stgconfigkey,vp))
+			print('    {0} : OK, I\'ll use the version of VEGAS found in {1}.'.format(self.stgconfigkey,vp))
 			return vp
 			
 	#Print the current status of the stage and it's constituent jobs
@@ -293,7 +301,8 @@ class VAStage:
 	def unk_opts_check(self, *args):
 		unk_opts = []
 		for i in range(len(args)):
-			for opt in args[i]:
+			for opt_tmp in args[i]:
+				opt = opt_tmp.split(':')[0] #Should handle the special case of OPT:GRP
 				opt_known = False
 				if opt in self.valid_opts:
 					opt_known = True
@@ -315,7 +324,36 @@ class VAStage:
 	def good_fmt(self, gd_str):
 		return fontstyle.set_style(gd_str, txt_clr='white', bg_clr='green', format='bold')	
 	
+	#Return the hostname of the machine on which the file specified by path is located.
+	def get_file_host(self, path):
+		#print(path)
+		sp = subprocess.Popen(['df', path], stdout=subprocess.PIPE)
+		device = sp.communicate()[0].decode('utf-8').split('\n')[1].split()[0]
+		sr = device.partition(':')
+		hostname = ''
+		if sr[1] == '':
+			hostname = os.getenv('HOSTNAME')
+		else:
+			domain = os.getenv('HOSTNAME').split('.',1)[1]
+			hostname = sr[0] + '.' + domain
+		return hostname
 	
+	#Return the VEGAS executable for the specified stage.
+	def get_executable(self, vegas_path):
+		bin_pat = re.compile('vaStage' + self.stage + '.*')
+		bins = os.listdir(os.path.join(vegas_path,'bin'))
+		executable = ''
+		for b in bins:
+			m = bin_pat.match(b)
+			if m != None:
+				executable = os.path.join(vegas_path, 'bin', b)
+				break
+		if executable == '':
+			err_str = '{0}: Executable file for this stage could no be found!'.format(self.stgconfigkey)
+			err_str = self.bad_fmt(err_str)
+			raise Exception(err_str)
+		else:
+			return executable			 
 	
 	#Cleans up files produced by this stage based on the contents of the clean_opts list.						
 	def clean_up(self, clean_opts):
@@ -397,9 +435,13 @@ class VAStage1(VAStage):
 		
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
+
+		#Get the executable for this stage
+		self.vegas_path = self.get_vegas_path()
+		self.vegas_exec = self.get_executable(self.vegas_path)
 		
                 #write config file
-		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.vegas_exec, self.outputdir)
 		conf_t = cw.write('config')
 		self.config=conf_t[0]
 		
@@ -469,9 +511,13 @@ class VAStage2(VAStage):
 		
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
+
+		#Get the executable for this stage
+		self.vegas_path = self.get_vegas_path()
+		self.vegas_exec = self.get_executable(self.vegas_path)
 		
                 #write config file
-		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.vegas_exec, self.outputdir)
 		conf_t = cw.write('config')
 		self.config=conf_t[0]
 		
@@ -498,7 +544,7 @@ class VAStage2(VAStage):
 
 class VAStage4(VAStage):
 
-	stage='4.2'
+	stage='4'
 	copies_input=True
 	needs_cvbf=False
 	needs_root=True
@@ -522,8 +568,12 @@ class VAStage4(VAStage):
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
 
+		#Get the executable for this stage
+		self.vegas_path = self.get_vegas_path()
+		self.vegas_exec = self.get_executable(self.vegas_path)
+
                 #write config and cut files
-		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.vegas_exec, self.outputdir)
 		conf_t = cw.write('config')
 		cuts_t = cw.write('cuts')
 		self.config = conf_t[0]
@@ -579,8 +629,12 @@ class VAStage5(VAStage):
 			
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
+
+		#Get the executable for this stage
+		self.vegas_path = self.get_vegas_path()
+		self.vegas_exec = self.get_executable(self.vegas_path)
 		
-		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.vegas_exec, self.outputdir)
 		conf_t = cw.write('config')
 		cuts_t = cw.write('cuts')
 		self.config = conf_t[0]
@@ -650,8 +704,12 @@ class VAStage6(VAStage):
 
 		self.stg6_group_config()
 
+		#Get the executable for this stage
+		self.vegas_path = self.get_vegas_path()
+		self.vegas_exec = self.get_executable(self.vegas_path)
+
                 #write config and cut files
-		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.outputdir)
+		cw = configwriter.ConfigWriter(self.configdict, self.stgconfigkey, self.stage, self.vegas_exec, self.outputdir)
 		conf_t = cw.write('config')
 		cuts_t = cw.write('cuts')
 		self.config = conf_t[0]
@@ -722,7 +780,8 @@ class VAStage6(VAStage):
 				if group == k.partition(':')[2]:
 					opt = k.partition(':')[0]
 					if opt == 'EA':
-						self.ea_dict.update({group : v})
+						v_tmp = v.strip('"') #Strips "'s if provided in EA path -- more user friendly
+						self.ea_dict.update({group : v_tmp})
 					else:
 						config_list.append(opt + ' ' + v)
 			self.group_config.update({group : config_list})

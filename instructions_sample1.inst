@@ -15,7 +15,7 @@
 #These are the global configuration options for the script
 GLOBALCONFIG{
 
-	#VEGASPATH= #Explicitly indicates the version of vegas to use. optional.
+	#VEGASPATH=/happy/vegas/path #Explicitly indicates the version of vegas to use. optional.
 	WORKINGDIR=/home/vhep/ssscott/tmp #Top level directory for this analysis
 	RAWDATADIR=/veritas_data/raw
 
@@ -38,6 +38,13 @@ GLOBALCONFIG{
 #execution order on its own. The VEGAS stage instructions can include any
 #option found in the cuts and configuration files. Together, these should be the same as
 #the options that can specified on the command line. 
+
+#The following are the VIVA specific options that can be used in VIVA VASTAGE blocks. These
+#are all optional and can be omitted entirely if desired.
+#USEEXISTINGOUTPUT=True|False
+#INPUTDIR=/my/manual/input/directory
+#OUTPUTDIR=/my/manual/output/directory
+#CLEANUP=all|output|output_bad|logs|logs_bad
 
 #Parallel Stage1 analyses
 VASTAGE1:GRP1{
@@ -99,9 +106,10 @@ VASTAGE5:GRP2{
 
 }
 
-#For stage 6, the formatted specially formatted runlist will written
-#automatically. 
+#For stage 6, the specially formatted runlist will written automatically. 
 VASTAGE6:GRP1:GRP2{
+
+	USEEXISTINGOUTPUT=False
 
 	#These should set the defaults within the stage 6 configuration and be applied
 	#to each run group in the case where a group-level configuration is not
@@ -119,6 +127,14 @@ VASTAGE6:GRP1:GRP2{
 	#RBM_SearchWindowSqCut:GRP1=0.03
 	#S6A_RingSize:GRP2=0.17
 	#RBM_SearchWindowSqCut:GRP2=0.03
-	#This still requires testing.
+	#
+	#This is especially useful if multiple effective area files are needed.
+	#Effective areas can be assigned to each group separately in the following way.
+	#Note that EA:GRP=EAFILEPATH is a VIVA specific option
+	#Check the stage6 runlist in the output directory to ensure that these assignments
+	#have been done correctly.
+	#
+	#EA:GRP1=/veritas_data/effective_areas/ea_Oct2012_ua_ATM21_vegasv250rc5_7sam_050off_s400t2_std_MSW1p1_MSL1p3_MH7_ThetaSq0p03_LZA_fixed150.root
+	#EA:GRP2=/veritas_data/effective_areas/ea_Oct2012_ua_ATM21_vegasv250rc5_7sam_050off_s400t2_std_MSW1p1_MSL1p3_MH7_ThetaSq0p03_LZA_fixed150.root
 
 }

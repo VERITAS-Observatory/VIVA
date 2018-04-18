@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 
 instfilereader.py: Defines class that handles the reading in of the instructions file and creation of the configuration dictionary
@@ -53,7 +51,9 @@ class InstFileReader:
 							end_idx = j
 							break
 						elif sub_line != start_sep:
-							parts = sub_line.partition('=')
+							parts = sub_line.partition('=') #Assumed format OPT=VAL
+							if parts[1] == '': #Maybe the user used the OPT VAL format instead
+								parts = sub_line.partition(' ')
 							opt = parts[0].strip()
 							val = parts[2].strip()
 							opt_dict.update({opt:val})

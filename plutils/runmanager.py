@@ -88,7 +88,8 @@ class RunGroup:
 				run_obj = Run(runnum, 'data', calibrunnum, ddate, timecuts)
 				datarundict.update({runnum:run_obj})  
 				if not calibrunnum in calibrundict.keys():
-					calibrun_obj = Run(calibrunnum, 'calib', None, ddate, None)
+					ddate_calib = dbconnection.get_ddate(calibrunnum)
+					calibrun_obj = Run(calibrunnum, 'calib', None, ddate_calib, None)
 					calibrundict.update({calibrunnum:calibrun_obj})
 
 		return [datarundict, calibrundict] 
