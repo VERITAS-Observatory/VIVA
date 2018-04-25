@@ -51,7 +51,7 @@ class VAStage:
 				machine = self.get_file_host(cvbf_file)
 				jrequirements = "(machine == \"" + machine + "\")"
 				
-			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size=str(2048*1024), environment=jenvironment)
+			cj = condor.CondorJob(executable=jexecutable, universe=juniverse, requirements=jrequirements, arguments=jarguments, log=jlog, error=jerror, output=jout, subid=jsubid, workingdir=self.outputdir, image_size=str(1740*1024), environment=jenvironment)
 			self.jobs.update({run : cj})		
 	
 	def execute(self):
