@@ -55,7 +55,7 @@ class ConfigWriter:
 					opt = line.split()[0]
 					if opt in self.configdict[self.stagekey].keys():
 						val = self.configdict[self.stagekey][opt]
-						rep = opt + ' ' + val
+						rep = opt + ' ' + val + '\n'
 						line = line.replace(line, rep)
 						unk_opts.remove(opt)
 						conf_file.write(line)

@@ -13,7 +13,6 @@ GLOBALCONFIG{
 	RUNLIST:STD:ITM=./sample_runlist2.rl
 	
 	DBHOSTNAME=romulus.ucsc.edu
-	DBNAME=VERITAS
 	DBUSERNAME=readonly
 
 	USECONDOR=True

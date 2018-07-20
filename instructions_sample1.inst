@@ -15,7 +15,6 @@
 #These are the global configuration options for the script
 GLOBALCONFIG{
 
-	#VEGASPATH=/happy/vegas/path #Explicitly indicates the version of vegas to use. optional.
 	WORKINGDIR=/home/vhep/ssscott/tmp #Top level directory for this analysis
 	RAWDATADIR=/veritas_data/raw
 
@@ -27,7 +26,6 @@ GLOBALCONFIG{
 
 	#The following DB Options are also accessible by stage 2
 	DBHOSTNAME=romulus.ucsc.edu
-	DBNAME=VERITAS
 	DBUSERNAME=readonly
 
 	USECONDOR=True #Must use condor for now
@@ -85,6 +83,12 @@ VASTAGE4:GRP1:GRP2{
 VASTAGE5:GRP1{
 
 	USEEXISTINGOUTPUT=True
+
+	#Specify whether stage5 should use time cuts from the database.
+	#When this is set to true, DB time cuts will be used in addition to any
+	#user-specified time cuts in the runlist. All time cuts used are logged
+	#in a text file in the output directory for this stage.
+	USEDBTIMECUTS=True
 	
 	MeanScaledWidthLower=0.05
 	MeanScaledWidthUpper=1.1
@@ -98,6 +102,7 @@ VASTAGE5:GRP1{
 VASTAGE5:GRP2{
 
 	USEEXISTINGOUTPUT=True
+	USESBTIMECUTS=True
 	MeanScaledWidthLower=0.05
 	MeanScaledWidthUpper=1.1
 	MeanScaledLengthLower=0.05
@@ -111,6 +116,10 @@ VASTAGE6:GRP1:GRP2{
 
 	USEEXISTINGOUTPUT=False
 
+	#Enable/Disable the vaStage6 cross-check between the configuration-specifed 
+	#theta^2 cut and that used in the generation of the effective area file(s).
+	OverrideEACheck=False
+
 	#These should set the defaults within the stage 6 configuration and be applied
 	#to each run group in the case where a group-level configuration is not
 	#specified
@@ -120,6 +129,17 @@ VASTAGE6:GRP1:GRP2{
 	S6A_SourceExclusionRadius=0.4
 	S6A_TestPositionRA=83.6333
 	S6A_TestPositionDEC=22.0145
+
+	#Example spectral analysis options. See the vaStage6 configuration file for
+	#additional options.
+	#S6A_Spectrum=1
+        #EA_UseReconstructedEnergy=1
+	#EA_RealSpectralIndex=-4.7
+        #SP_UL=1
+        #SP_EnergyBinning=1
+	#SP_NumberOfBins=5
+	#SP_MinEnergy=-0.96
+	#SP_MaxEnergy=-1.0
 
 	#Note that is should also be possible to specify config options on group by
 	#group basis in the following way:
