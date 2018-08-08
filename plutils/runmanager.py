@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jul 19 10:43:48 2017
-
-@author: yuqing
-"""
-
 from . import database
 
 class RunGroupManager:
@@ -76,29 +68,71 @@ class RunGroup:
 				len_sl = len(sl) 
 				if len_sl >= 2:
 					runnum = sl[0]
-					timecuts = sl[1]
+					user_timecuts = sl[1]
 				elif len_sl == 1:
 					runnum = sl[0]
-					timecuts = ""
+					user_timecuts = ""
 				elif len_sl == 0:
 					continue
 				#calib and date
-				calibrunnum = dbconnection.get_calib_run(runnum)
+				calibs = dbconnection.get_calib_runs(runnum)
 				ddate = dbconnection.get_ddate(runnum)
-				run_obj = Run(runnum, 'data', calibrunnum, ddate, timecuts)
-				datarundict.update({runnum:run_obj})  
-				if not calibrunnum in calibrundict.keys():
-					ddate_calib = dbconnection.get_ddate(calibrunnum)
-					calibrun_obj = Run(calibrunnum, 'calib', None, ddate_calib, None)
-					calibrundict.update({calibrunnum:calibrun_obj})
+				src_id = dbconnection.get_source_id(runnum)
+				db_timecuts = dbconnection.get_dqm_timecuts(runnum)
+				run_obj = Run(runnum, 'data', calibs, ddate, user_timecuts, db_timecuts, src_id)
+				datarundict.update({runnum:run_obj})
+				for calibrunnum in calibs:  
+					if not calibrunnum in calibrundict.keys():
+						ddate_calib = dbconnection.get_ddate(calibrunnum)
+						calibrun_obj = Run(calibrunnum, 'calib', None, ddate_calib, None, None, 'laser')
+						calibrundict.update({calibrunnum:calibrun_obj})
 
 		return [datarundict, calibrundict] 
  
 	
 class Run:
-	def __init__(self, runnum, runtype, calib, ddate, timecuts):
+	def __init__(self, runnum, runtype, calibs, ddate, user_timecuts, db_timecuts, src_id):
 		self.runnum = runnum
 		self.runtype = runtype
-		self.calib = calib
+		self.calibs = calibs
 		self.ddate = ddate
-		self.timecuts = timecuts
+		self.user_timecuts = user_timecuts
+		self.db_timecuts = db_timecuts
+		self.source_id = src_id
+		
+		self.multi_calibs = False
+		if self.runtype == 'data':
+			self.multi_calibs = self.has_multi_calibs()
+
+	def has_multi_calibs(self):
+		multi_calibs = False
+
+		for i in range(0, len(self.calibs)):
+			for j in range(i+1,len(self.calibs)):
+				if self.calibs[i] == None:
+					wrn_str = "{0}: No calibration run found for T{1}. Make certain this telescope was actually missing from the array.\n"
+					wrn_str = wrn_str + "This run will be assigned the same calibration run as used for T{2}"
+					wrn_str = wrn_str.format(self.runnum, i+1,j+1)
+					print(wrn_str)
+					if self.calibs[j] != None:
+						self.calibs[i] = self.calibs[j]
+				elif self.calibs[j] == None:
+					wrn_str = "{0}: No calibration run found for T{1}. Make certain this telescope was actually missing from the array.\n"
+					wrn_str = wrn_str + "This run will be assigned the same calibration run as used for T{2}"
+					wrn_str = wrn_str.format(self.runnum, j+1, i+1)
+					print(wrn_str)
+					if self.calibs[i] != None:
+						self.calibs[j] = self.calibs[i]
+				elif self.calibs[i] != self.calibs[j]:
+					multi_calibs = True
+
+		return multi_calibs
+				
+				
+				
+				
+		
+			
+			
+				
+			

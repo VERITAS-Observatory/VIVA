@@ -17,8 +17,8 @@ class VAStage:
 	vegas_exec = ''
 	
 	jobs = {}
-	valid_opts = ['USECONDOR', 'USEEXISTINGOUTPUT', 'KILLONFAILURE', 'VEGASPATH', 'CLEANUP', 'INPUTDIR', 'OUTPUTDIR', 'EA']
-			
+	valid_opts = ['USECONDOR', 'USEEXISTINGOUTPUT', 'KILLONFAILURE', 'VEGASPATH', 'CLEANUP', 'INPUTDIR', 'OUTPUTDIR', 'USEDBTIMECUTS', 'EA', 'OverrideEACheck']
+	
 	def is_condor_enabled(self):
 		
 		if 'USECONDOR' in self.configdict.get(self.stgconfigkey).keys():
@@ -262,17 +262,25 @@ class VAStage:
 		print('    {0} : Looking for the appropriate version of VEGAS to use...'.format(self.stgconfigkey))
 		vp = None
 		if 'VEGASPATH' in self.configdict[self.stgconfigkey].keys():
-			vp = self.configdict[self.stgconfigkey].get('VEGASPATH')
+			#vp = self.configdict[self.stgconfigkey].get('VEGASPATH')
+			wrn_str = "    {0} : VEGASPATH option no longer supported. The VEGAS version will be determined from your environment variables."
+			wrn_str = wrn_str.format(self.stgconfigkey)
+			wrn_str = self.wrn_fmt(wrn_str)
+			print(wrn_str)
 		elif 'VEGASPATH' in self.configdict['GLOBALCONFIG'].keys():
-			vp = self.configdict['GLOBALCONFIG'].get('VEGASPATH')
-		else:
-			try: 
-				vp = os.environ['VEGAS']
+			#vp = self.configdict['GLOBALCONFIG'].get('VEGASPATH')
+			wrn_str = "    {0} : VEGASPATH option no longer supported. The VEGAS version will be determined from your environment variables."
+			wrn_str = wrn_str.format(self.stgconfigkey)
+			wrn_str = self.wrn_fmt(wrn_str)
+			print(wrn_str)
+		
+		try: 
+			vp = os.environ['VEGAS']
+		except KeyError:
+			try:
+				vp = os.environ['VERITASBASE'] + '/vegas'
 			except KeyError:
-				try:
-					vp = os.environ['VERITASBASE'] + '/vegas'
-				except KeyError:
-					vp = None
+				vp = None
 		
 		if vp == None or not os.path.isdir(vp): 
 			err_str = '    {0}: could not resolve vegas path'.format(self.stgconfigkey)
@@ -432,7 +440,7 @@ class VAStage1(VAStage):
 		for k, rg in self.rungroups.items():
 			self.runlist.update(rg.datarundict)
 			self.runlist.update(rg.calibrundict)
-		
+
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
 
@@ -485,6 +493,7 @@ class VAStage1(VAStage):
 			
 		return arg_str
 
+
 class VAStage2(VAStage):
 
 	stage='2'
@@ -508,6 +517,8 @@ class VAStage2(VAStage):
 		self.runlist = {}
 		for k, rg in self.rungroups.items():
 			self.runlist.update(rg.datarundict)
+
+		self.write_calib_log()
 		
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
@@ -534,13 +545,100 @@ class VAStage2(VAStage):
 		arg_str = arg_str + '-config='+self.config
 		
 		rawdatafile = self.get_file(run, 'cvbf', [self.configdict.get('GLOBALCONFIG').get('RAWDATADIR')], True)
-		calibfile = self.get_file(self.runlist.get(run).calib, 'root', self.inputdirs)
+		if self.runlist.get(run).multi_calibs:
+			calibfile = self.combine_calibs(run)
+			info_str = '{0} : Using the following combined calibration file for run {1}\n\t{2}'
+			info_str = info_str.format(self.stgconfigkey, run, calibfile)
+			print(info_str)
+			
+		else:
+			calibfile = self.get_file(self.runlist.get(run).calibs[0], 'root', self.inputdirs)
 		#Recall that stage 1 file has been copied into the data directory
 		datafile = self.get_file(run, 'root', [self.outputdir])
 
 		arg_str = arg_str + ' ' + rawdatafile + ' ' + datafile + ' ' + calibfile
 		
 		return arg_str
+	
+	#Create a composite calibration run and return its file name
+	def combine_calibs(self, runnum):
+
+		tel_calib_files = [None,None,None,None]
+		calibs = self.runlist.get(runnum).calibs
+		combine_id = ''
+
+		for i,cr in enumerate(calibs):
+			tel_calib_files[i] = self.get_file(cr, 'root', self.inputdirs)
+			combine_id = combine_id + cr
+			if i != len(calibs)-1:
+				combine_id = combine_id + '_'
+
+		outfilepath = os.path.join(self.outputdir, combine_id + '.root')
+
+		
+		#Only create the combined calibration run if does not already exist
+		if self.get_file(combine_id, 'root', [self.outputdir]) == None:
+			
+			info_str = "{0} : Creating combined calibration run {1}.root in output directory."
+			info_str = info_str.format(self.stgconfigkey, combine_id)
+			print(info_str)
+
+			macros_dir = self.get_macros_dir()		
+			#logon_macro = 'rootlogon.C' #os.path.join(macros_dir,'rootlogon.C')
+			#combine_macro = 'combineLaser.C' #os.path.join(macros_dir,'combineLaser.C')
+
+			#copy base file to stg2 outputdir
+			sp = subprocess.Popen(['cp', tel_calib_files[0], outfilepath], stdout=subprocess.PIPE)
+			sp.wait()
+
+			combine_cmd =  'combineLaser(\"{0}\",\"{1}\",\"{2}\",\"{3}\",\"{4}\")'
+			combine_cmd = combine_cmd.format(outfilepath, tel_calib_files[0], tel_calib_files[1], tel_calib_files[2], tel_calib_files[3])
+
+			combine_macro = self.write_combine_macro(combine_id, combine_cmd)
+
+			sp = subprocess.Popen(['root', '-b', '-q', macros_dir, combine_macro],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+			sp.wait()
+		
+		return outfilepath
+	
+	#return the path to the vegas macros directory
+	def get_macros_dir(self):
+		vb = os.getenv('VERITASBASE')
+		sp = subprocess.Popen(['find',vb,'-type','d','-name','macros'], stdout=subprocess.PIPE)
+		sp.wait()
+		results = sp.communicate()[0].decode('utf-8').split('\n')
+		if results[0] == '':
+			err_str = "{0}: Could not find VEGAS macros directory while trying to combine calibration runs!".format(self.stgconfigkey)
+			err_str = self.bad_fmt(err_str)
+			raise Exception(err_str)
+		else:
+			macros_dir = results[0]
+		
+		return macros_dir
+
+	#Write a temporary macro for the combination process (needed to work around ROOT weirdness)
+	#Need to be executed from the $VEGAS/macros directory
+	def write_combine_macro(self, combine_id, combine_cmd):
+		macro_file = os.path.join(self.outputdir, 'combine_' + combine_id + '.C')
+		with open(macro_file,'w') as mf:
+			mf.write('void combine_' + combine_id + '(){\n')
+			mf.write('gROOT->ProcessLine(".x rootlogon.C");\n')
+			mf.write(combine_cmd + ';\n')
+			mf.write('}')
+		return macro_file
+	
+	def write_calib_log(self):
+		logfile = os.path.join(self.outputdir, "calib_log.txt")
+		info_str = '{0}: Writing calibration log file to {1}'
+		info_str = info_str.format(self.stgconfigkey, logfile)
+		with open(logfile,'w') as lf:
+			for k,rg in self.rungroups.items():
+				for r,robj in rg.datarundict.items():
+					calib_str = "{0}    {1}    {2}    {3}    {4}\n"
+					calib_str = calib_str.format(r,robj.calibs[0],robj.calibs[1],robj.calibs[2],robj.calibs[3])
+					lf.write(calib_str)
+		
+		
 
 class VAStage4(VAStage):
 
@@ -626,6 +724,7 @@ class VAStage5(VAStage):
 		self.runlist = {}
 		for k, rg in self.rungroups.items():
 			self.runlist.update(rg.datarundict)
+
 			
 		self.existing_output = self.anl_existing_output()
 		self.use_existing = self.use_existing_output()
@@ -646,12 +745,41 @@ class VAStage5(VAStage):
 			wrn_str = self.wrn_fmt(wrn_str)	
 			print(wrn_str)	
         	
+		if 'USEDBTIMECUTS' in self.configdict[self.stgconfigkey].keys():
+			if self.configdict[self.stgconfigkey]['USEDBTIMECUTS'].lower() in ['true', '1', 'totally']:
+				info_str = '\t{0} : Database timecuts will be used in addition to any user specifed timecuts.'
+				info_str = info_str.format(self.stgconfigkey)
+				print(info_str)
+
+				self.use_db_timecuts = True
+			else:
+				info_str = '\t{0} : Using only user specifed timecuts. Set USEDBTIMECUTS=True to include DB timecuts'
+				info_str = info_str.format(self.stgconfigkey)
+				info_str = self.wrn_fmt(info_str)
+				print(info_str)
+
+				self.use_db_timecuts = False
+		else:
+			info_str = '\t{0} : Using only user specifed timecuts. Add option USEDBTIMECUTS=True to include DB timecuts.'
+			info_str = info_str.format(self.stgconfigkey)
+			info_str = self.wrn_fmt(info_str)
+			print(info_str)
+
+			self.use_db_timecuts = False
+
 		if not 'Method' in self.configdict[self.stgconfigkey].keys():
 			info_str = '{0} : Warning, no event selection method was specified with Method=<method_type>.\n'.format(self.stgconfigkey)
 			info_str = info_str + 'Note: vaStage5 will default to VANullEventSelection, which is unlikely to be desireable.\n'
 			info_str = info_str + 'Consider adding Method=\"VAStereoEventSelection\" or Method=\"VACombinedEventSelection\" to the instructions file.'
 			info_str = self.wrn_fmt(info_str)
 			print(info_str)
+		
+		timecut_log_name = self.stgconfigkey + '_timecuts_log.txt'
+		timecut_log_name = timecut_log_name.lower().replace(':','-')
+		self.timecutlog = os.path.join(self.outputdir, timecut_log_name)
+		tcl = open(self.timecutlog, 'w+')
+		tcl.close()
+		
         
 		self.status='initialized'
 
@@ -662,7 +790,8 @@ class VAStage5(VAStage):
 		arg_str = arg_str + ' -cuts=' + self.cuts
 		
 		#time cuts
-		timecut_str = self.runlist.get(run).timecuts
+		timecut_str = self.build_timecut_str(run)
+		self.log_timecut(run, timecut_str)
 		if not timecut_str == '':
 			arg_str = arg_str + ' -ES_CutTimes=' + timecut_str		
 
@@ -673,6 +802,29 @@ class VAStage5(VAStage):
 		arg_str = arg_str + ' -outputFile ' + stg5file
 
 		return arg_str
+
+	def build_timecut_str(self, run):
+		user_timecuts = self.runlist.get(run).user_timecuts
+		db_timecuts = self.runlist.get(run).db_timecuts
+		
+		#tmp_str = '{0} : usr={1}, db={2}'
+		#tmp_str = tmp_str.format(run,user_timecuts,db_timecuts)
+		#print(tmp_str)
+		
+		timecuts = user_timecuts
+		if self.use_db_timecuts and db_timecuts != '':
+			if timecuts != '':
+				timecuts = timecuts + ',' + db_timecuts
+			else:
+				timecuts = db_timecuts
+
+		return timecuts
+
+	def log_timecut(self, runnum, timecuts):
+		with open(self.timecutlog, 'a') as tcl:
+			line = runnum + ' ' + timecuts + '\n'
+			tcl.write(line)
+		 
 
 class VAStage6(VAStage):
 	
@@ -732,6 +884,16 @@ class VAStage6(VAStage):
 		arg_str = arg_str + ' -S6A_Batch=1'
 		arg_str = arg_str + ' -cuts=' + self.cuts 
 		arg_str = arg_str + ' -config=' + self.config
+		if 'OverrideEACheck' in self.configdict[self.stgconfigkey].keys():
+			if self.configdict[self.stgconfigkey]['OverrideEACheck'].lower() in ['true', '1', 'roger']:
+				wrn_str = '    {0} : Overriding the check on the cut values used in the creation of the effective area.\n'
+				wrn_str = wrn_str + '    If this was not a deliberate selection, set OverrideEACheck=0.'
+				wrn_str = wrn_str.format(self.stgconfigkey)
+				wrn_str = self.wrn_fmt(wrn_str)
+				print(wrn_str)
+				arg_str = arg_str + ' -OverrideEACheck=1'
+			else:
+				arg_str = arg_str + ' -OverrideEACheck=0'
 		arg_str = arg_str + ' ' + self.stg6_rlfilename
 
 		return arg_str
