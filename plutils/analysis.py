@@ -99,9 +99,8 @@ class AnalysisCore():
 		stg_num = self.stgnum_from_key(stgkey)		
 		if 'INPUTDIR' in stg_config.keys():
 			#user override of the input directory
-			idir = stg_config['INPUTDIR']
-			print('    {0} : User specified input directory = {1}'.format(stgkey,idir))
-			inputdirs.append(idir)
+			inputdirs = stg_config['INPUTDIR'].split(':')
+			print('    {0} : User specified input directories = {1}'.format(stgkey,inputdirs))
 		elif stg_num == '1':
 			idir = self.configdict['GLOBALCONFIG'].get('RAWDATADIR')
 			print('    {0} : Raw data directory = {1}'.format(stgkey, idir))

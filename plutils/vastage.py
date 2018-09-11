@@ -169,8 +169,11 @@ class VAStage:
 	
 	#copies root files from the input directory to the outputdirectory. This is needed as some stages modify an existing file rather than creating a new one
 	def copy_input_to_output(self):
-		print('{0} : Copying output root file from previous stage...\n Directories: {1}'.format(self.stgconfigkey,self.inputdirs))
-		copyprocs = []
+		print('    {0} : Copying output root file from previous stage...\n\tDirectories: {1}'.format(self.stgconfigkey,self.inputdirs))
+		print('\tThis may take a while. Please be patient...')
+		#copyprocs = []
+		n_files = len(self.runlist.keys())
+		file_cntr = 0
 		file_pat = re.compile('([0-9]+)([.]*.*[.])root')
 		for dir in self.inputdirs:
 			for file in os.listdir(dir):
@@ -182,20 +185,29 @@ class VAStage:
 						if self.use_existing and self.existing_output[m.group(1)]:
 							pass
 						else:
+							file_cntr = file_cntr + 1
 							oldfile = dir + '/' + m.group()
 							newfile = self.outputdir + '/' + m.group(1) + '.stg' + self.stage + '.root'
-							proc = subprocess.Popen(['cp', oldfile, newfile])
-							copyprocs.append(proc)
+							info_str = '\t-Copying file {0} of {1}'
+							info_str = info_str.format(file_cntr, n_files)
+							print(info_str)
+
+							#New copy behavoir: Copy only one file at times using rsync 
+							proc = subprocess.Popen(['rsync', '-t', oldfile, newfile])
+							proc.wait()
+							
+							#copyprocs.append(proc)
+		#Old copy behvoir:
 		#Ensure we wait for all the copying jobs to finish
-		is_copying=True
-		while(is_copying):
-			poll_results = []
-			for p in copyprocs:
-				poll_results.append(p.poll())
-			if not None in poll_results:
-				is_copying = False
-			else:
-				time.sleep(0.25)
+		#is_copying=True
+		#while(is_copying):
+			#poll_results = []
+			#for p in copyprocs:
+				#poll_results.append(p.poll())
+			#if not None in poll_results:
+				#is_copying = False
+			#else:
+				#time.sleep(0.25)
 
 	#returns the path to the file for a specific run. Searchs directories in the list dirs.
 	#Setting the ddate_dir argument to True will a append a prefix directory of the form dyyyymmdd to the search path 
@@ -944,6 +956,14 @@ class VAStage6(VAStage):
 					if opt == 'EA':
 						v_tmp = v.strip('"') #Strips "'s if provided in EA path -- more user friendly
 						self.ea_dict.update({group : v_tmp})
+					#Process the bdt cuts file for each group 
+					elif opt == 'BDTCUTSFILE':
+						v_temp = v.strip('"')
+						with open(v_temp, 'r') as fbdt:
+							lines = fbdt.readlines()
+							for line in lines:
+								if line != '':
+									config_list.append(line)		
 					else:
 						config_list.append(opt + ' ' + v)
 			self.group_config.update({group : config_list})

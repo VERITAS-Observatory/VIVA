@@ -40,7 +40,10 @@ GLOBALCONFIG{
 #The following are the VIVA specific options that can be used in VIVA VASTAGE blocks. These
 #are all optional and can be omitted entirely if desired.
 #USEEXISTINGOUTPUT=True|False
+#
+#Manually specify the input directory/directories. Multiple directories are separated a colon.
 #INPUTDIR=/my/manual/input/directory
+#
 #OUTPUTDIR=/my/manual/output/directory
 #CLEANUP=all|output|output_bad|logs|logs_bad
 
@@ -156,5 +159,10 @@ VASTAGE6:GRP1:GRP2{
 	#
 	#EA:GRP1=/veritas_data/effective_areas/ea_Oct2012_ua_ATM21_vegasv250rc5_7sam_050off_s400t2_std_MSW1p1_MSL1p3_MH7_ThetaSq0p03_LZA_fixed150.root
 	#EA:GRP2=/veritas_data/effective_areas/ea_Oct2012_ua_ATM21_vegasv250rc5_7sam_050off_s400t2_std_MSW1p1_MSL1p3_MH7_ThetaSq0p03_LZA_fixed150.root
+	#
+	#BDT cuts files can be specified in a similar way to EAs:
+	#
+	#BDTCUTSFILE:GRP1=/veritas_data/BDT/cuts/ua_ATM21/Hillas_M3D_BDT_ua_ATM21_soft_DETECTION.cut
+	#BDTCUTSFILE:GRP2=/veritas_data/BDT/cuts/ua_ATM22/Hillas_M3D_BDT_ua_ATM22_soft_DETECTION.cut
 
 }
