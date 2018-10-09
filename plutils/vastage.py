@@ -610,21 +610,37 @@ class VAStage2(VAStage):
 
 			sp = subprocess.Popen(['root', '-b', '-q', macros_dir, combine_macro],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 			sp.wait()
+			
+			root_out = sp.communicate()[0].decode('utf-8').split('\n')
+			root_out_log = os.path.join(self.outputdir, 'combine_' + combine_id + '.out')
+			
+			with open(root_out_log, 'w') as f:
+				for line in root_out:
+					f.write(line + '\n')
 		
 		return outfilepath
 	
 	#return the path to the vegas macros directory
 	def get_macros_dir(self):
 		vb = os.getenv('VERITASBASE')
-		sp = subprocess.Popen(['find',vb,'-type','d','-name','macros'], stdout=subprocess.PIPE)
+		sp = subprocess.Popen(['find',vb,'-type','f','-name','combineLaser.C'], stdout=subprocess.PIPE)
 		sp.wait()
-		results = sp.communicate()[0].decode('utf-8').split('\n')
-		if results[0] == '':
+		results1 = sp.communicate()[0].decode('utf-8').split('\n')
+		macros_dir = ''
+		#In newer builds of VEGAS, there are mutiple copies of the macro, so must find one in a directory with a logon script
+		for r in results1:
+			dir = r.rpartition('/')[0]
+			sp = subprocess.Popen(['find', dir,'-type','f','-name','rootlogon.C'], stdout=subprocess.PIPE)
+			sp.wait()
+			results2 = sp.communicate()[0].decode('utf-8').split('\n')
+			if results2[0] != '':
+				macros_dir = results2[0].rpartition('/')[0]
+				break				
+			
+		if macros_dir == '':
 			err_str = "{0}: Could not find VEGAS macros directory while trying to combine calibration runs!".format(self.stgconfigkey)
 			err_str = self.bad_fmt(err_str)
 			raise Exception(err_str)
-		else:
-			macros_dir = results[0]
 		
 		return macros_dir
 
