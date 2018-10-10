@@ -595,7 +595,10 @@ class VAStage2(VAStage):
 			info_str = info_str.format(self.stgconfigkey, combine_id)
 			print(info_str)
 
-			macros_dir = self.get_macros_dir()		
+			macros_dir = self.get_macros_dir()
+			
+			info_str = '{0} : Macros Directory: {1}'
+			print(info_str.format(self.stgconfigkey, macros_dir))		
 			#logon_macro = 'rootlogon.C' #os.path.join(macros_dir,'rootlogon.C')
 			#combine_macro = 'combineLaser.C' #os.path.join(macros_dir,'combineLaser.C')
 
@@ -608,23 +611,39 @@ class VAStage2(VAStage):
 
 			combine_macro = self.write_combine_macro(combine_id, combine_cmd)
 
-			sp = subprocess.Popen(['root', '-b', '-q', macros_dir, combine_macro],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+			sp = subprocess.Popen(['root', '-b', '-q', macros_dir, 'rootlogon.C', combine_macro],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 			sp.wait()
+			
+			root_out = sp.communicate()[0].decode('utf-8').split('\n')
+			root_out_log = os.path.join(self.outputdir, 'combine_' + combine_id + '.out')
+			
+			with open(root_out_log, 'w') as f:
+				for line in root_out:
+					f.write(line + '\n')
 		
 		return outfilepath
 	
 	#return the path to the vegas macros directory
 	def get_macros_dir(self):
-		vb = os.getenv('VERITASBASE')
-		sp = subprocess.Popen(['find',vb,'-type','d','-name','macros'], stdout=subprocess.PIPE)
+		vb = os.getenv('VEGAS')
+		sp = subprocess.Popen(['find',vb,'-type','f','-name','combineLaser.C'], stdout=subprocess.PIPE)
 		sp.wait()
-		results = sp.communicate()[0].decode('utf-8').split('\n')
-		if results[0] == '':
+		results1 = sp.communicate()[0].decode('utf-8').split('\n')
+		macros_dir = ''
+		#In newer builds of VEGAS, there are mutiple copies of the macro, so must find one in a directory with a logon script
+		for r in results1:
+			dir = r.rpartition('/')[0]
+			sp = subprocess.Popen(['find', dir,'-type','f','-name','rootlogon.C'], stdout=subprocess.PIPE)
+			sp.wait()
+			results2 = sp.communicate()[0].decode('utf-8').split('\n')
+			if results2[0] != '':
+				macros_dir = results2[0].rpartition('/')[0]
+				break				
+			
+		if macros_dir == '':
 			err_str = "{0}: Could not find VEGAS macros directory while trying to combine calibration runs!".format(self.stgconfigkey)
 			err_str = self.bad_fmt(err_str)
 			raise Exception(err_str)
-		else:
-			macros_dir = results[0]
 		
 		return macros_dir
 
@@ -634,7 +653,8 @@ class VAStage2(VAStage):
 		macro_file = os.path.join(self.outputdir, 'combine_' + combine_id + '.C')
 		with open(macro_file,'w') as mf:
 			mf.write('void combine_' + combine_id + '(){\n')
-			mf.write('gROOT->ProcessLine(".x rootlogon.C");\n')
+			#if os.getenv("CXX") != '':
+				#mf.write('gSystem->Setenv(\"PATH\",\"' + os.getenv("CXX").rpartition('/')[0] +'\");\n')
 			mf.write(combine_cmd + ';\n')
 			mf.write('}')
 		return macro_file
