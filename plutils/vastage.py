@@ -595,7 +595,10 @@ class VAStage2(VAStage):
 			info_str = info_str.format(self.stgconfigkey, combine_id)
 			print(info_str)
 
-			macros_dir = self.get_macros_dir()		
+			macros_dir = self.get_macros_dir()
+			
+			info_str = '{0} : Macros Directory: {1}'
+			print(info_str.format(self.stgconfigkey, macros_dir))		
 			#logon_macro = 'rootlogon.C' #os.path.join(macros_dir,'rootlogon.C')
 			#combine_macro = 'combineLaser.C' #os.path.join(macros_dir,'combineLaser.C')
 
@@ -608,7 +611,7 @@ class VAStage2(VAStage):
 
 			combine_macro = self.write_combine_macro(combine_id, combine_cmd)
 
-			sp = subprocess.Popen(['root', '-b', '-q', macros_dir, combine_macro],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+			sp = subprocess.Popen(['root', '-b', '-q', macros_dir, 'rootlogon.C', combine_macro],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 			sp.wait()
 			
 			root_out = sp.communicate()[0].decode('utf-8').split('\n')
@@ -622,7 +625,7 @@ class VAStage2(VAStage):
 	
 	#return the path to the vegas macros directory
 	def get_macros_dir(self):
-		vb = os.getenv('VERITASBASE')
+		vb = os.getenv('VEGAS')
 		sp = subprocess.Popen(['find',vb,'-type','f','-name','combineLaser.C'], stdout=subprocess.PIPE)
 		sp.wait()
 		results1 = sp.communicate()[0].decode('utf-8').split('\n')
@@ -650,7 +653,8 @@ class VAStage2(VAStage):
 		macro_file = os.path.join(self.outputdir, 'combine_' + combine_id + '.C')
 		with open(macro_file,'w') as mf:
 			mf.write('void combine_' + combine_id + '(){\n')
-			mf.write('gROOT->ProcessLine(".x rootlogon.C");\n')
+			#if os.getenv("CXX") != '':
+				#mf.write('gSystem->Setenv(\"PATH\",\"' + os.getenv("CXX").rpartition('/')[0] +'\");\n')
 			mf.write(combine_cmd + ';\n')
 			mf.write('}')
 		return macro_file
