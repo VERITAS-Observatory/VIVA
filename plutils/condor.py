@@ -33,7 +33,7 @@ class CondorJob:
 
 		self.exitstatus=None
 		self.write_submit_file()
-		self.status='configured'
+		self.status='initialized'
 	
 	#Method for writing the condor submit file
 	def write_submit_file(self):
@@ -130,7 +130,8 @@ class CondorJob:
 					self.exitstatus=line.split('return value ')[1][0]
 	
 	def get_status(self):
-		self.update_status()
+		if self.status != 'initialized':
+			self.update_status()
 		return self.status
 
 	def kill(self):

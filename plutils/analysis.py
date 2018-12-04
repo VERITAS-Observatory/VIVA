@@ -213,7 +213,7 @@ class AnalysisCore():
 
 			for stg in req_stgs:
 				req_status = self.stg_objs.get(stg).get_status()
-				if req_status == 'initialized':
+				if req_status in ['initialized', 'started']:
 					n_initialized = n_initialized + 1
 				elif req_status == 'submitted':
 					n_submitted = n_submitted + 1
@@ -228,14 +228,16 @@ class AnalysisCore():
 			
 			if n_initialized == len(req_stgs):
 				status='initialized'
-			elif n_submitted > 0 and n_executing==0:
+			elif n_submitted == len(req_stgs):
 				status = 'submitted'
-			elif n_executing > 0 and n_failed == 0:
+			elif n_executing == len(req_stgs):
 				status = 'executing'
 			elif n_failed > 0:
 				status = 'failed'
 			elif n_succeeded == len(req_stgs):
 				status = 'succeeded'
+			elif n_failed == 0:
+				status = 'mixed_nofail'
 		
 		if status == None:
 			err_str = '{0}: Could not resolve status of requirements.'.format(stgkey)

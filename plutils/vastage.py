@@ -169,7 +169,7 @@ class VAStage:
 	
 	#copies root files from the input directory to the outputdirectory. This is needed as some stages modify an existing file rather than creating a new one
 	def copy_input_to_output(self):
-		print('    {0} : Copying output root file from previous stage...\n\tDirectories: {1}'.format(self.stgconfigkey,self.inputdirs))
+		print('    {0} : Copying required output root file(s) from previous stage...\n\tDirectories: {1}'.format(self.stgconfigkey,self.inputdirs))
 		print('\tThis may take a while. Please be patient...')
 		#copyprocs = []
 		n_files = len(self.runlist.keys())
@@ -183,7 +183,9 @@ class VAStage:
 					if m.group(1) in self.runlist.keys():
 						#Only copy if we intend to overwrite the existing output for this run
 						if self.use_existing and self.existing_output[m.group(1)]:
-							pass
+							file_cntr = file_cntr + 1
+							info_str = '\t-Skipping file {0} of {1}'
+							print(info_str.format(file_cntr, n_files))					
 						else:
 							file_cntr = file_cntr + 1
 							oldfile = dir + '/' + m.group()
@@ -313,8 +315,10 @@ class VAStage:
 				tmp_str = '    ' + r + ' : '
 				if j.exitstatus == '0':
 					tmp_str = tmp_str + self.good_fmt(j.exitstatus)
-				else:
+				elif j.exitstatus == '1':
 					tmp_str = tmp_str + self.bad_fmt(j.exitstatus)
+				else:
+					tmp_str = tmp_str + self.bad_fmt('?')
 				print(tmp_str)
 	
 	#Return the overlap among the list of unknown options
