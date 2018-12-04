@@ -165,7 +165,7 @@ class ShellJob():
 		with open(self.exec_file,'w') as ef:
 			ef.write('#!/bin/bash\n')
 			ef.write('\n')
-			ef.write('echo "PID: $BASHPID" >>{0}\n'.format(self.logf))
+			ef.write('echo "PID: $$" >>{0}\n'.format(self.logf))
 			ef.write('\n')
 			exec_cmd = '{0} {1}'.format(self.executable, self.args)
 			if self.out:

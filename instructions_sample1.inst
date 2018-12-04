@@ -72,7 +72,18 @@ VASTAGE2:GRP2{
 #analyses to complete. In practice, this is the opposite of what you might
 #normally do (combined analysis for stages 1 & 2, separate analyses for later
 #stages)
-VASTAGE4:GRP1:GRP2{
+VASTAGE4:GRP1{
+
+	USEEXISTINGOUTPUT=True
+
+	LTM_LookupTableFile="/veritas_data/lookup_tables/v250/lt_Oct2012_ua_ATM21_7samples_vegasv250rc5_allOffsets_LZA_noise150fix.root"
+	DistanceUpper=0/1.43
+	SizeLower=0/400
+	NTubesMin=0/5
+
+}
+
+VASTAGE4:GRP2{
 
 	USEEXISTINGOUTPUT=True
 
@@ -105,7 +116,7 @@ VASTAGE5:GRP1{
 VASTAGE5:GRP2{
 
 	USEEXISTINGOUTPUT=True
-	USESBTIMECUTS=True
+	USEDBTIMECUTS=True
 	MeanScaledWidthLower=0.05
 	MeanScaledWidthUpper=1.1
 	MeanScaledLengthLower=0.05
