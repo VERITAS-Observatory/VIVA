@@ -25,6 +25,10 @@ opt_dict.update(fm_dict)
 
 #Set the style of string.
 def set_style(str, **kwargs):
+
+	if str == None:
+		return ''
+
 	opt_str = ""
 	for opt,val in kwargs.items():
 		if opt.lower() in ['txt_clr', 'text_color', 'color', 'text']:
