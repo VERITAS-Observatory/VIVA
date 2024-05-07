@@ -17,7 +17,7 @@ class VAStage:
 	vegas_exec = ''
 	
 	jobs = {}
-	valid_opts = ['USECONDOR', 'USEEXISTINGOUTPUT', 'KILLONFAILURE', 'VEGASPATH', 'CLEANUP', 'INPUTDIR', 'OUTPUTDIR', 'USEDBTIMECUTS', 'EA', 'OverrideEACheck']
+	valid_opts = ['USECONDOR', 'USEEXISTINGOUTPUT', 'KILLONFAILURE', 'VEGASPATH', 'CLEANUP', 'INPUTDIR', 'OUTPUTDIR', 'USEDBTIMECUTS', 'EA']
 	
 	def is_condor_enabled(self):
 		
@@ -731,10 +731,18 @@ class VAStage4(VAStage):
 		arg_str = ''
 		arg_str = arg_str + '-config=' + self.config
 		arg_str = arg_str + ' -cuts=' + self.cuts
-		
+		if 'OverrideLTCheck' in self.configdict[self.stgconfigkey].keys():
+			if self.configdict[self.stgconfigkey]['OverrideLTCheck'].lower() in ['true', '1', 'roger']:
+				wrn_str = '    {0} : Overriding the check on the values used in the creation of the LookUp Table.\n'
+				wrn_str = wrn_str + '    If this was not a deliberate selection, set OverrideLTCheck=0.'
+				wrn_str = wrn_str.format(self.stgconfigkey)
+				wrn_str = self.wrn_fmt(wrn_str)
+				print(wrn_str)
+				arg_str = arg_str + ' -OverrideLTCheck=1'
+			else:
+				arg_str = arg_str + ' -OverrideEACheck=0'		
 		datafile = self.get_file(run, 'root', [self.outputdir])
-		arg_str = arg_str + ' ' + datafile
-		
+		arg_str = arg_str + ' ' + datafile	
 		return arg_str
 
 class VAStage5(VAStage):

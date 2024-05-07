@@ -84,6 +84,8 @@ class CondorJob:
 			os.remove(log_filename)		
 
 		sp=subprocess.Popen(['condor_submit', self.submit_filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		# condor is not keeping up with a long slew of submissions add a sleep -- DAW
+		time.sleep(2.0)
 		sub_out=sp.stdout.read().decode('utf-8')
 		
 		
